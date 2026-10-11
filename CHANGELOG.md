@@ -2,7 +2,7 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
-## [3.19.3]
+## [3.19.3] - 2026-10-11
 
 > Cloud Safe Updates compatibility, progress reporting and snapshot performance improvements for hosted WordPress sites, including Hostinger and WP Launcher.
 
