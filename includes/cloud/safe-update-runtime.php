@@ -178,7 +178,7 @@ class EMCP_Update_Runtime {
 			self::save( $s );
 		} catch ( Throwable $error ) {
 			$s['code'] = preg_match( '/^[a-z_]+$/D', $error->getMessage() ) ? $error->getMessage() : 'operation_failed';
-			$s['diagnostic'] = array( 'class' => get_class( $error ), 'file' => basename( $error->getFile() ), 'line' => $error->getLine() );
+			$s['diagnostic'] = array( 'class' => get_class( $error ), 'file' => basename( $error->getFile() ), 'line' => $error->getLine(), 'errno' => (int) $error->getCode() );
 			if ( 'restoring' === $s['phase'] ) { $s['phase'] = 'manual_recovery'; self::save( $s ); }
 			elseif ( ! empty( $s['snapshot_ready'] ) ) { $s['phase'] = 'restoring'; $s['restore_step'] = 0; $s['restore_db'] = 0; self::save( $s ); }
 			else { self::release( $s, 'failed' ); }
@@ -412,8 +412,12 @@ class EMCP_Update_Runtime {
 			$budget += strlen( $bytes ) + 4096;
 		}
 		if ( $s['file_index'] < count( $s['files'] ) ) { return; }
+		// Shared hosts can limit connection bursts. Reuse one connection for this batch.
+		$db = null;
+		try {
 		while ( $s['table_index'] < count( $s['tables'] ) && $budget < self::$tick_bytes && microtime( true ) - $start < self::$tick_seconds ) {
-			$i = $s['table_index']; $db = self::db( $s ); $table = self::ident( $s['tables'][ $i ] );
+			if ( null === $db ) { $db = self::db( $s ); }
+			$i = $s['table_index']; $table = self::ident( $s['tables'][ $i ] );
 			$create = $db->query( 'SHOW CREATE TABLE ' . $table )->fetch_row()[1];
 			if ( preg_match( '/GENERATED ALWAYS|GENERATED\s+.*(?:VIRTUAL|STORED)/i', $create ) ) { throw new RuntimeException( 'generated_columns_not_supported' ); }
 			$max_packet = (int) $db->query( 'SELECT @@max_allowed_packet' )->fetch_row()[0];
@@ -428,11 +432,12 @@ class EMCP_Update_Runtime {
 				if ( $bytes > 20971520 || count( $rows ) >= 50000 ) { throw new RuntimeException( 'table_size_limit' ); }
 				$rows[] = $row;
 			}
-			$result->free(); $db->close();
+			$result->free();
 			self::write( $dir . '/table-' . $i . '.php', array( 'create' => $create, 'rows' => $rows ) );
 			$s['table_hashes'][ $i ] = hash_file( 'sha256', $dir . '/table-' . $i . '.php' );
 			$s['table_index']++; $budget += $bytes + 4096;
 		}
+		} finally { if ( null !== $db ) { $db->close(); } }
 		if ( $s['table_index'] < count( $s['tables'] ) ) { return; }
 		$s['snapshot_ready'] = true; $s['phase'] = 'applying'; $s['item_index'] = 0;
 	}
