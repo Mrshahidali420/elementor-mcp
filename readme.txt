@@ -3,7 +3,7 @@ Contributors: mianshahzadraza
 Tags: elementor, mcp, ai, page-builder, automation
 Requires at least: 6.9
 Tested up to: 7.1
-Stable tag: 3.19.4
+Stable tag: 3.19.3
 Requires PHP: 8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -195,7 +195,11 @@ The admin screens ship compiled in `assets/admin/build/`. Their full source and 
 
 = 3.19.3 =
 
-Cloud Safe Updates compatibility fixes for hosted WordPress sites, including Hostinger and WP Launcher.
+Cloud Safe Updates compatibility, progress reporting and snapshot performance improvements for hosted WordPress sites, including Hostinger and WP Launcher.
+
+* Improved: Drain countdown, snapshot file and database progress, and latest site confirmation in Cloud.
+* Improved: Resumable snapshot scans, bounded file copying, batched database exports and verified unchanged-file snapshot reuse, with a fresh database snapshot for every group.
+* Fixed: Reuse one database connection per snapshot batch to avoid connection bursts on shared hosting.
 
 * Fixed: Hostinger AI history tables are checked by structure instead of being mistaken for another WordPress installation based on names. They remain included in snapshots and rollback; genuine overlapping installations and unreadable metadata still block updates.
 * Fixed: Standard writable MU plugins are included in snapshots and standalone recovery, including when an MU plugin fails. Custom MU-plugin paths, drop-ins and external object caches remain blocked when recovery cannot safely cover them.

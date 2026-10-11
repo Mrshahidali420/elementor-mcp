@@ -2,14 +2,13 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
-## [3.19.4]
+## [3.19.3]
+
+> Cloud Safe Updates compatibility, progress reporting and snapshot performance improvements for hosted WordPress sites, including Hostinger and WP Launcher.
 
 - Improved: Cloud Safe Updates reports drain time, snapshot file and database progress, and the latest site confirmation.
 - Improved: Snapshot scans resume across bounded requests, small database tables are batched, and unchanged files can reuse verified snapshots between update groups. Every group still gets a fresh database snapshot and the existing rollback protections.
-
-## [3.19.3]
-
-> Cloud Safe Updates compatibility fixes for hosted WordPress sites, including Hostinger and WP Launcher.
+- Fixed: Database snapshots reuse one connection per batch to avoid connection bursts on shared hosting.
 
 - Fixed: **Hostinger AI history tables no longer look like another WordPress installation.** Recovery checks table structure as well as names, while keeping these history tables in snapshots and rollback. Genuine overlapping WordPress installations and unreadable database metadata still block updates.
 - Fixed: **Standard writable must-use plugins are supported by Cloud Safe Updates.** Their files are snapshotted and restored without loading WordPress, including when an MU plugin fails. Custom MU-plugin paths, drop-ins and external object caches remain blocked when automatic recovery cannot safely cover them.
