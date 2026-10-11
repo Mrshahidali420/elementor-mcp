@@ -57,8 +57,15 @@ class EMCP_Tools_Safe_Updates {
 		global $wpdb;
 		require_once __DIR__ . '/safe-update-runtime.php';
 		$tables = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix ) . '%' ) );
-		// Another install whose prefix extends ours (wp_shop_ under wp_) would be rolled back with this site.
-		if ( EMCP_Update_Runtime::other_installs( (array) $tables, $wpdb->prefix ) ) { $codes[] = 'shared_database_prefix'; }
+		// Plugin history tables can share these suffixes. Confirm the core schema
+		// before treating a matching pair as a second WordPress installation.
+		try {
+			if ( ! $tables || $wpdb->last_error ) { throw new RuntimeException( 'database_schema_unavailable' ); }
+			if ( EMCP_Update_Runtime::other_installs( $tables, $wpdb->prefix, static function ( $table ) use ( $wpdb ) {
+				$columns = $wpdb->get_col( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), 0 );
+				return $wpdb->last_error ? null : $columns;
+			} ) ) { $codes[] = 'shared_database_prefix'; }
+		} catch ( Throwable $error ) { $codes[] = 'database_schema_unavailable'; }
 		try {
 			EMCP_Update_Runtime::preflight_files( ABSPATH );
 		} catch ( RuntimeException $error ) {

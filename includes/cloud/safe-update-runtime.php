@@ -8,6 +8,8 @@ class EMCP_Update_Runtime {
 	/** Work per request, so each tick ends well inside common host time limits. */
 	public static $tick_bytes = 33554432;
 	public static $tick_rows = 5000;
+	public static $tick_seconds = 5;
+	public static $scan_entries = 2000;
 
 	/**
 	 * The line prepended to wp-config.php for the window. When the job folder is missing
@@ -22,14 +24,24 @@ class EMCP_Update_Runtime {
 	/**
 	 * Prefixes of other WordPress installs whose tables also start with ours (wp_shop_ under
 	 * wp_). Their tables would be snapshotted and rolled back with this site, so a shared
-	 * prefix refuses the job. An install is recognised by its own options and posts tables.
+	 * prefix refuses the job. Verify core columns too: plugins can have their own
+	 * options/posts history tables (for example Hostinger AI version snapshots).
+	 * Without a schema reader, keep the conservative name-only behavior.
 	 */
-	public static function other_installs( array $tables, $prefix ) {
+	public static function other_installs( array $tables, $prefix, ?callable $columns = null ) {
 		$set = array_flip( $tables ); $found = array();
 		foreach ( $tables as $table ) {
 			if ( ! str_starts_with( $table, $prefix ) || ! str_ends_with( $table, 'options' ) ) { continue; }
 			$other = substr( $table, 0, -7 );
-			if ( strlen( $other ) > strlen( $prefix ) && isset( $set[ $other . 'posts' ] ) ) { $found[] = $other; }
+			if ( strlen( $other ) <= strlen( $prefix ) || ! isset( $set[ $other . 'posts' ] ) ) { continue; }
+			if ( $columns ) {
+				$options = $columns( $table ); $posts = $columns( $other . 'posts' );
+				// Failed or empty metadata must not silently disable cross-site protection.
+				if ( ! is_array( $options ) || ! $options || ! is_array( $posts ) || ! $posts ) { throw new RuntimeException( 'database_schema_unavailable' ); }
+				$options = array_map( 'strtolower', $options ); $posts = array_map( 'strtolower', $posts );
+				if ( array_diff( array( 'option_id', 'option_name', 'option_value', 'autoload' ), $options ) || array_diff( array( 'id', 'post_author', 'post_content', 'post_title', 'post_status', 'post_type' ), $posts ) ) { continue; }
+			}
+			$found[] = $other;
 		}
 		sort( $found );
 		return array_values( array_unique( $found ) );
@@ -64,9 +76,32 @@ class EMCP_Update_Runtime {
 		return array_map( static function ( $v ) { if ( null === $v ) { return null; } $bytes = is_string( $v ) && 0 === strlen( $v ) % 2 && ctype_xdigit( $v . '0' ) ? hex2bin( $v ) : false; if ( false === $bytes ) { throw new RuntimeException( 'snapshot_corrupt' ); } return $bytes; }, $row );
 	}
 	public static function receipt( $state ) {
-		return array_intersect_key( $state, array_flip( array( 'job', 'phase', 'group', 'code', 'snapshot' ) ) );
+		$receipt = array_intersect_key( $state, array_flip( array( 'job', 'phase', 'group', 'code', 'snapshot' ) ) );
+		$p = array( 'elapsed_seconds' => max( 0, time() - ( $state['phase_started_at'] ?? time() ) ) );
+		if ( 'draining' === $state['phase'] ) { $p['drain_remaining_seconds'] = max( 0, ( $state['drain_until'] ?? time() ) - time() ); }
+		if ( in_array( $state['phase'], array( 'snapshot', 'restoring' ), true ) ) {
+			$p['stage'] = isset( $state['scan'] ) || ! isset( $state['files'] ) ? 'scanning' : 'files';
+			$p['files_scanned'] = count( $state['files'] ?? array() );
+			if ( ! isset( $state['scan'] ) && isset( $state['tables'] ) ) {
+				$p['files_total'] = count( $state['files'] );
+				$p['files_done'] = min( $p['files_total'], (int) ( 'restoring' === $state['phase'] ? ( $state['restore_step'] ?? 0 ) : ( $state['file_index'] ?? 0 ) ) );
+				$p['tables_total'] = count( $state['tables'] );
+				$p['tables_done'] = min( $p['tables_total'], (int) ( 'restoring' === $state['phase'] ? ( $state['restore_db'] ?? 0 ) : ( $state['table_index'] ?? 0 ) ) );
+				if ( $p['files_done'] === $p['files_total'] ) { $p['stage'] = 'database'; }
+			}
+			if ( 'snapshot' === $state['phase'] && isset( $state['snapshot_bytes_total'] ) ) {
+				$p['bytes_total'] = $state['snapshot_bytes_total']; $p['bytes_done'] = $state['snapshot_bytes_done'] ?? 0;
+				$p['files_reused'] = $state['files_reused'] ?? 0;
+			}
+		}
+		$receipt['progress'] = $p;
+		return $receipt;
 	}
-	private static function save( &$state ) { self::write( $state['dir'] . '/state.php', $state ); }
+	private static function save( &$state ) {
+		$checkpoint = $state['phase'] . ':' . $state['group'];
+		if ( ( $state['progress_phase'] ?? '' ) !== $checkpoint ) { $state['progress_phase'] = $checkpoint; $state['phase_started_at'] = time(); }
+		self::write( $state['dir'] . '/state.php', $state );
+	}
 
 	public static function serve( $dir ) {
 		ini_set( 'display_errors', '0' );
@@ -113,9 +148,13 @@ class EMCP_Update_Runtime {
 			if ( 'approve' === $action ) {
 				if ( 'baseline' === $s['phase'] ) { $s['phase'] = 'draining'; $s['drain_until'] = time() + 120; }
 				elseif ( 'verify' === $s['phase'] ) {
+					// Only immutable, verified file snapshots may be reused. Databases are always fresh.
+					$s['previous_files'] = array();
+					foreach ( $s['files'] ?? array() as $i => $file ) { $s['previous_files'][ $file['path'] ] = array( 'hash' => $file['hash'], 'index' => $i ); }
+					$s['previous_snapshot'] = $s['snapshot'] ?? null;
 					$s['group']++;
 					if ( $s['group'] >= count( $s['groups'] ) ) { self::release( $s, 'completed' ); return; }
-					unset( $s['snapshot_ready'], $s['snapshot'], $s['files'], $s['tables'], $s['file_index'], $s['table_index'], $s['item_index'], $s['restore_pruned'] );
+					unset( $s['snapshot_ready'], $s['snapshot'], $s['files'], $s['tables'], $s['file_index'], $s['table_index'], $s['item_index'], $s['restore_pruned'], $s['scan'], $s['snapshot_bytes_total'], $s['snapshot_bytes_done'], $s['files_reused'] );
 					$s['phase'] = 'snapshot';
 				}
 				self::save( $s ); return;
@@ -191,7 +230,7 @@ class EMCP_Update_Runtime {
 		foreach ( glob( $base . 'snapshot-*', GLOB_NOSORT ) ?: array() as $path ) { self::remove_tree( $path, $base ); }
 		foreach ( array( 'original-config.php', 'gate.php' ) as $file ) { if ( is_file( $base . $file ) ) { unlink( $base . $file ); } }
 		foreach ( $s['groups'] ?? array() as $g => $group ) { foreach ( $group as $i => $item ) { unset( $s['groups'][ $g ][ $i ]['_source'] ); } }
-		unset( $s['db'], $s['files'], $s['tables'], $s['table_hashes'] );
+		unset( $s['db'], $s['files'], $s['tables'], $s['table_hashes'], $s['previous_files'], $s['previous_snapshot'], $s['scan'] );
 		$s['cleaned'] = true;
 		self::save( $s );
 	}
@@ -228,7 +267,9 @@ class EMCP_Update_Runtime {
 	private static function tables( $db, $prefix ) {
 		$names = array();
 		foreach ( $db->query( 'SHOW TABLES' ) as $row ) { $names[] = reset( $row ); }
-		if ( self::other_installs( $names, $prefix ) ) { throw new RuntimeException( 'shared_database_prefix' ); }
+		if ( self::other_installs( $names, $prefix, static function ( $table ) use ( $db ) {
+			return array_column( $db->query( 'SHOW COLUMNS FROM ' . self::ident( $table ) )->fetch_all( MYSQLI_ASSOC ), 'Field' );
+		} ) ) { throw new RuntimeException( 'shared_database_prefix' ); }
 		$tables = array();
 		foreach ( $db->query( 'SHOW TABLE STATUS' ) as $row ) {
 			if ( ! str_starts_with( $row['Name'], $prefix ) ) { continue; }
@@ -299,10 +340,48 @@ class EMCP_Update_Runtime {
 		if ( $check_space && disk_free_space( $s['dir'] ) < $bytes * 2 + 134217728 ) { throw new RuntimeException( 'insufficient_disk_space' ); }
 		return $files;
 	}
+	/** Persist directory cursors between ticks. Never expose names or paths in public progress. */
+	private static function scan_snapshot( &$s ) {
+		if ( ! isset( $s['files'] ) ) { $s['files'] = array(); $s['scan'] = array( 'pending' => array( '' ), 'current' => null, 'offset' => 0, 'bytes' => 0 ); }
+		$start = microtime( true ); $entries = 0;
+		while ( $entries < self::$scan_entries && microtime( true ) - $start < self::$tick_seconds ) {
+			if ( null === $s['scan']['current'] ) {
+				if ( ! $s['scan']['pending'] ) {
+					if ( disk_free_space( $s['dir'] ) < $s['scan']['bytes'] * 2 + 134217728 ) { throw new RuntimeException( 'insufficient_disk_space' ); }
+					$s['snapshot_bytes_total'] = $s['scan']['bytes']; unset( $s['scan'] ); return;
+				}
+				$s['scan']['current'] = array_pop( $s['scan']['pending'] ); $s['scan']['offset'] = 0;
+			}
+			$relative_dir = $s['scan']['current']; $directory = $s['root'] . $relative_dir;
+			if ( is_link( rtrim( $directory, '/' ) ) ) { throw new RuntimeException( 'symlinks_not_supported' ); }
+			$iterator = new DirectoryIterator( $directory ); $iterator->seek( $s['scan']['offset'] );
+			while ( $iterator->valid() && $entries < self::$scan_entries && microtime( true ) - $start < self::$tick_seconds ) {
+				$entry = $iterator->getFileInfo(); $s['scan']['offset']++; $iterator->next(); $entries++;
+				$name = $entry->getFilename();
+				if ( '.' === $name || '..' === $name || str_starts_with( $name, '.emcp-update-' ) ) { continue; }
+				$relative = $relative_dir . $name; $path = $s['root'] . $relative;
+				if ( '.wp-launcher-ready' === $relative && $entry->isLink() ) { throw new RuntimeException( 'symlinks_not_supported' ); }
+				if ( ! self::in_scope( $relative, $entry->isDir() ) ) { continue; }
+				if ( $entry->isLink() ) { throw new RuntimeException( 'symlinks_not_supported' ); }
+				if ( $entry->isDir() ) {
+					if ( ! is_writable( $path ) ) { throw new RuntimeException( 'files_not_writable' ); }
+					$s['scan']['pending'][] = $relative . '/'; continue;
+				}
+				if ( 'wp-config.php' === $relative || '.maintenance' === $relative ) { continue; }
+				if ( ! $entry->isFile() || ! is_readable( $path ) || ! is_writable( $path ) ) { throw new RuntimeException( 'files_not_writable' ); }
+				$size = $entry->getSize(); $s['scan']['bytes'] += $size;
+				if ( count( $s['files'] ) >= 50000 || $s['scan']['bytes'] > 2147483648 || $size > 67108864 ) { throw new RuntimeException( 'snapshot_size_limit' ); }
+				$hash = hash_file( 'sha256', $path );
+				if ( false === $hash ) { throw new RuntimeException( 'files_not_writable' ); }
+				$s['files'][] = array( 'path' => $relative, 'mode' => fileperms( $path ) & 0777, 'hash' => $hash );
+			}
+			if ( ! $iterator->valid() ) { $s['scan']['current'] = null; }
+		}
+	}
 	private static function snapshot( &$s ) {
 		$dir = $s['dir'] . '/snapshot-' . $s['group'];
-		if ( ! isset( $s['files'] ) ) {
-			$s['files'] = self::files( $s );
+		if ( ! isset( $s['files'] ) || isset( $s['scan'] ) ) { self::scan_snapshot( $s ); if ( isset( $s['scan'] ) ) { return; } }
+		if ( ! isset( $s['tables'] ) ) {
 			$db = self::db( $s );
 			// Exercise restoration DDL before trusting a read-only database export.
 			$canary = self::ident( $s['db']['prefix'] . 'emcp_recovery_probe_' . str_replace( '-', '', substr( $s['job'], 0, 13 ) ) );
@@ -315,16 +394,25 @@ class EMCP_Update_Runtime {
 			$s['snapshot'] = 'snapshot-' . $s['group'];
 			return;
 		}
-		$budget = 0;
-		for ( ; $s['file_index'] < count( $s['files'] ) && $budget < self::$tick_bytes; $s['file_index']++ ) {
+		$budget = 0; $start = microtime( true );
+		for ( ; $s['file_index'] < count( $s['files'] ) && $budget < self::$tick_bytes && microtime( true ) - $start < self::$tick_seconds; $s['file_index']++ ) {
 			$i = $s['file_index']; $file = $s['files'][ $i ];
 			$bytes = file_get_contents( $s['root'] . $file['path'] );
 			if ( false === $bytes || ! hash_equals( $file['hash'], hash( 'sha256', $bytes ) ) ) { throw new RuntimeException( 'site_changed_during_snapshot' ); }
-			self::atomic( $dir . '/file-' . $i . '.php', self::GUARD . $bytes );
+			$target = $dir . '/file-' . $i . '.php'; $reused = false;
+			$previous = $s['previous_files'][ $file['path'] ] ?? null;
+			if ( function_exists( 'link' ) && $previous && hash_equals( $previous['hash'], $file['hash'] ) && preg_match( '/^snapshot-[0-9]+$/D', $s['previous_snapshot'] ?? '' ) ) {
+				$old = $s['dir'] . '/' . $s['previous_snapshot'] . '/file-' . (int) $previous['index'] . '.php';
+				// A hard link shares only a guarded snapshot, never a live WordPress file.
+				if ( ! is_link( $old ) && is_file( $old ) && hash_equals( hash( 'sha256', self::GUARD . $bytes ), hash_file( 'sha256', $old ) ) && ! file_exists( $target ) ) { $reused = @link( $old, $target ); }
+			}
+			if ( ! $reused ) { self::atomic( $target, self::GUARD . $bytes ); }
+			$s['files_reused'] = ( $s['files_reused'] ?? 0 ) + ( $reused ? 1 : 0 );
+			$s['snapshot_bytes_done'] = ( $s['snapshot_bytes_done'] ?? 0 ) + strlen( $bytes );
 			$budget += strlen( $bytes ) + 4096;
 		}
 		if ( $s['file_index'] < count( $s['files'] ) ) { return; }
-		if ( $s['table_index'] < count( $s['tables'] ) ) {
+		while ( $s['table_index'] < count( $s['tables'] ) && $budget < self::$tick_bytes && microtime( true ) - $start < self::$tick_seconds ) {
 			$i = $s['table_index']; $db = self::db( $s ); $table = self::ident( $s['tables'][ $i ] );
 			$create = $db->query( 'SHOW CREATE TABLE ' . $table )->fetch_row()[1];
 			if ( preg_match( '/GENERATED ALWAYS|GENERATED\s+.*(?:VIRTUAL|STORED)/i', $create ) ) { throw new RuntimeException( 'generated_columns_not_supported' ); }
@@ -343,8 +431,9 @@ class EMCP_Update_Runtime {
 			$result->free(); $db->close();
 			self::write( $dir . '/table-' . $i . '.php', array( 'create' => $create, 'rows' => $rows ) );
 			$s['table_hashes'][ $i ] = hash_file( 'sha256', $dir . '/table-' . $i . '.php' );
-			$s['table_index']++; return;
+			$s['table_index']++; $budget += $bytes + 4096;
 		}
+		if ( $s['table_index'] < count( $s['tables'] ) ) { return; }
 		$s['snapshot_ready'] = true; $s['phase'] = 'applying'; $s['item_index'] = 0;
 	}
 

@@ -15,6 +15,7 @@ final class SafeUpdateRuntimeTest extends TestCase {
 	}
 	protected function tearDown(): void {
 		EMCP_Update_Runtime::$tick_bytes = 33554432; EMCP_Update_Runtime::$tick_rows = 5000;
+		EMCP_Update_Runtime::$tick_seconds = 5; EMCP_Update_Runtime::$scan_entries = 2000;
 		$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->root, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
 		foreach ( $it as $entry ) { $entry->isDir() ? rmdir( $entry->getPathname() ) : unlink( $entry->getPathname() ); }
 		rmdir( $this->root );
@@ -47,9 +48,49 @@ final class SafeUpdateRuntimeTest extends TestCase {
 	public function test_baseline_approval_waits_for_old_requests_to_drain(): void {
 		$this->command( 'tick' ); $this->command( 'approve' );
 		$this->assertSame( 'draining', $this->state['phase'] );
+		$p = EMCP_Update_Runtime::receipt( $this->state )['progress'];
+		$this->assertGreaterThanOrEqual( 119, $p['drain_remaining_seconds'] );
 		$this->command( 'tick' ); $this->assertSame( 'draining', $this->state['phase'] );
 		$this->state['drain_until'] = time() - 1; $this->command( 'tick' );
 		$this->assertSame( 'snapshot', $this->state['phase'] );
+	}
+	public function test_snapshot_scan_resumes_with_identical_scope_and_private_progress(): void {
+		mkdir( $this->root . 'wp-content/plugins/demo', 0700, true );
+		mkdir( $this->root . 'wp-content/uploads', 0700, true );
+		for ( $i = 0; $i < 7; $i++ ) { file_put_contents( $this->root . 'wp-content/plugins/demo/' . $i . '.php', 'content-' . $i ); }
+		file_put_contents( $this->root . 'wp-content/uploads/excluded.txt', 'private upload' );
+		$this->state['phase'] = 'snapshot'; EMCP_Update_Runtime::$scan_entries = 2;
+		$scan = new ReflectionMethod( EMCP_Update_Runtime::class, 'scan_snapshot' );
+		$scan->invokeArgs( null, array( &$this->state ) );
+		$this->assertArrayHasKey( 'scan', $this->state );
+		for ( $i = 0; $i < 30 && isset( $this->state['scan'] ); $i++ ) {
+			EMCP_Update_Runtime::write( $this->state['dir'] . '/state.php', $this->state );
+			$this->state = EMCP_Update_Runtime::read( $this->state['dir'] . '/state.php' );
+			$scan->invokeArgs( null, array( &$this->state ) );
+		}
+		$this->assertArrayNotHasKey( 'scan', $this->state );
+		$this->assertCount( 7, $this->state['files'] );
+		$this->assertCount( 7, array_unique( array_column( $this->state['files'], 'path' ) ) );
+		$this->assertSame( 63, $this->state['snapshot_bytes_total'] );
+		$this->assertStringNotContainsString( 'demo', json_encode( EMCP_Update_Runtime::receipt( $this->state ) ) );
+	}
+	public function test_changed_or_corrupt_previous_snapshot_falls_back_to_a_fresh_copy(): void {
+		foreach ( array( 'changed', 'corrupt', 'unchanged' ) as $case ) {
+			$old = $this->state['dir'] . '/snapshot-0'; $new = $this->state['dir'] . '/snapshot-1';
+			if ( ! is_dir( $old ) ) { mkdir( $old ); mkdir( $new ); }
+			file_put_contents( $this->root . 'index.php', 'current' );
+			file_put_contents( $old . '/file-0.php', EMCP_Update_Runtime::GUARD . ( 'unchanged' === $case ? 'current' : 'old' ) );
+			@unlink( $new . '/file-0.php' );
+			$this->state['phase'] = 'snapshot'; $this->state['group'] = 1;
+			$this->state['files'] = array( array( 'path' => 'index.php', 'mode' => 0644, 'hash' => hash( 'sha256', 'current' ) ) );
+			$this->state['tables'] = array(); $this->state['file_index'] = 0; $this->state['table_index'] = 0;
+			$this->state['previous_snapshot'] = 'snapshot-0'; $this->state['files_reused'] = 0;
+			$this->state['previous_files'] = array( 'index.php' => array( 'hash' => hash( 'sha256', 'changed' === $case ? 'old' : 'current' ), 'index' => 0 ) );
+			$this->command( 'tick' );
+			$this->assertSame( 'applying', $this->state['phase'] );
+			$this->assertSame( 'unchanged' === $case && function_exists( 'link' ) ? 1 : 0, $this->state['files_reused'] );
+			$this->assertSame( EMCP_Update_Runtime::GUARD . 'current', file_get_contents( $new . '/file-0.php' ) );
+		}
 	}
 	public function test_stale_approval_cannot_advance_a_later_group(): void {
 		$this->state['phase'] = 'verify';
@@ -172,6 +213,9 @@ final class SafeUpdateRuntimeTest extends TestCase {
 			$admin->select_db( $name );
 			$admin->query( 'CREATE TABLE wp_options (id INT PRIMARY KEY, value TEXT) ENGINE=InnoDB' );
 			$admin->query( "INSERT INTO wp_options VALUES (1,'before')" );
+			$admin->query( 'CREATE TABLE wp_hostinger_ai_version_options (id BIGINT PRIMARY KEY, version_id BIGINT, option_name VARCHAR(191), option_value LONGTEXT) ENGINE=InnoDB' );
+			$admin->query( 'CREATE TABLE wp_hostinger_ai_version_posts (id BIGINT PRIMARY KEY, version_id BIGINT, post_id BIGINT, post_author BIGINT, post_content LONGTEXT, post_title TEXT, post_status VARCHAR(20), post_type VARCHAR(20)) ENGINE=InnoDB' );
+			$admin->query( "INSERT INTO wp_hostinger_ai_version_options VALUES (1,2,'sample','history-before')" );
 			mkdir( $this->root . 'wp-content/mu-plugins', 0700, true );
 			$mu = $this->root . 'wp-content/mu-plugins/host.php';
 			$original = '<?php echo "HOST HEALTHY";';
@@ -184,9 +228,21 @@ final class SafeUpdateRuntimeTest extends TestCase {
 			for ( $i = 0; $i < 10 && 'snapshot' === $this->state['phase']; $i++ ) { $this->command( 'tick' ); }
 			$this->assertSame( 'applying', $this->state['phase'], $this->state['code'] ?? '' );
 			$this->assertTrue( $this->state['snapshot_ready'] );
+			$this->assertContains( 'wp_hostinger_ai_version_options', $this->state['tables'] );
+			$this->assertContains( 'wp_hostinger_ai_version_posts', $this->state['tables'] );
+			// A second group must checkpoint the new database, even when its files can be reused.
+			$admin->query( "UPDATE wp_options SET value='after-first-group'" );
+			$this->state['phase'] = 'verify'; $this->command( 'approve' );
+			$this->command( 'tick' ); // Scan and initialize the new checkpoint.
+			$this->assertSame( 'snapshot', $this->state['phase'] );
+			$this->command( 'tick' ); // Small tables share this request with file copying.
+			$this->assertSame( 'applying', $this->state['phase'], $this->state['code'] ?? '' );
+			$this->assertSame( count( $this->state['tables'] ), $this->state['table_index'] );
+			$this->assertGreaterThan( 0, $this->state['files_reused'] );
 			file_put_contents( $mu, '<?php throw new Exception("broken host integration");' );
 			file_put_contents( $this->root . 'wp-content/mu-plugins/added.php', '<?php die("bad");' );
 			$admin->query( "UPDATE wp_options SET value='after'" );
+			$admin->query( "UPDATE wp_hostinger_ai_version_options SET option_value='history-after'" );
 			$this->command( 'rollback' );
 			$script = $this->state['dir'] . '/step.php';
 			file_put_contents( $script, '<?php require __DIR__ . "/runtime.php"; $s = EMCP_Update_Runtime::read(__DIR__ . "/state.php"); EMCP_Update_Runtime::advance($s, array("action" => "tick", "phase" => $s["phase"], "group" => $s["group"])); echo $s["phase"];' );
@@ -199,11 +255,19 @@ final class SafeUpdateRuntimeTest extends TestCase {
 			$this->assertSame( $original, file_get_contents( $mu ) );
 			$this->assertSame( 'HOST HEALTHY', $this->php( $mu ) );
 			$this->assertFileDoesNotExist( $this->root . 'wp-content/mu-plugins/added.php' );
-			$this->assertSame( 'before', $admin->query( 'SELECT value FROM wp_options' )->fetch_row()[0] );
+			$this->assertSame( 'after-first-group', $admin->query( 'SELECT value FROM wp_options' )->fetch_row()[0] );
+			$this->assertSame( 'history-before', $admin->query( 'SELECT option_value FROM wp_hostinger_ai_version_options' )->fetch_row()[0] );
 			$this->assertSame( 'host-owned', file_get_contents( $this->root . '.wp-launcher-ready' ) );
 			$this->state = EMCP_Update_Runtime::read( $this->state['dir'] . '/state.php' );
 			$this->command( 'release' );
 			$this->assertSame( 'rolled_back', $this->state['phase'] );
+			// A real overlapping installation remains blocked by the standalone snapshot check.
+			$admin->query( 'CREATE TABLE wp_shop_options (option_id BIGINT PRIMARY KEY, option_name VARCHAR(191), option_value LONGTEXT, autoload VARCHAR(20)) ENGINE=InnoDB' );
+			$admin->query( 'CREATE TABLE wp_shop_posts (ID BIGINT PRIMARY KEY, post_author BIGINT, post_content LONGTEXT, post_title TEXT, post_status VARCHAR(20), post_type VARCHAR(20)) ENGINE=InnoDB' );
+			try {
+				( new ReflectionMethod( EMCP_Update_Runtime::class, 'tables' ) )->invoke( null, $admin, 'wp_' );
+				$this->fail( 'Expected overlapping installation to remain blocked' );
+			} catch ( RuntimeException $error ) { $this->assertSame( 'shared_database_prefix', $error->getMessage() ); }
 		} finally {
 			chmod( $this->root . '.wp-launcher-ready', 0644 );
 			$admin->query( 'DROP DATABASE `' . $name . '`' ); $admin->close();
@@ -216,6 +280,26 @@ final class SafeUpdateRuntimeTest extends TestCase {
 		$this->assertSame( array( 'wp_shop_' ), EMCP_Update_Runtime::other_installs( $tables, 'wp_' ) );
 		$this->assertSame( array(), EMCP_Update_Runtime::other_installs( array( 'wp_options', 'wp_posts', 'wp_wc_orders', 'wp_forms_options' ), 'wp_' ) );
 		$this->assertSame( array(), EMCP_Update_Runtime::other_installs( array( 'wp_options', 'wp_posts', 'wp_shop_options', 'wp_shop_posts' ), 'wp_shop_' ) );
+	}
+
+	public function test_hostinger_history_tables_are_not_mistaken_for_an_install_but_real_installs_are(): void {
+		$schema = array(
+			'wp_hostinger_ai_version_options' => array( 'id', 'version_id', 'option_name', 'option_value' ),
+			'wp_hostinger_ai_version_posts' => array( 'id', 'version_id', 'post_id', 'post_author', 'post_content', 'post_title', 'post_status', 'post_type' ),
+			'wp_shop_options' => array( 'option_id', 'option_name', 'option_value', 'autoload' ),
+			'wp_shop_posts' => array( 'ID', 'post_author', 'post_content', 'post_title', 'post_status', 'post_type' ),
+		);
+		$reader = static fn( $table ) => $schema[ $table ];
+		$this->assertSame( array(), EMCP_Update_Runtime::other_installs( array_slice( array_keys( $schema ), 0, 2 ), 'wp_', $reader ) );
+		$this->assertSame( array( 'wp_shop_' ), EMCP_Update_Runtime::other_installs( array_keys( $schema ), 'wp_', $reader ) );
+		// The policy is schema-based, not a host-specific prefix exemption.
+		$schema['wp_hostinger_ai_version_options'] = $schema['wp_shop_options'];
+		$this->assertSame( array( 'wp_hostinger_ai_version_', 'wp_shop_' ), EMCP_Update_Runtime::other_installs( array_keys( $schema ), 'wp_', static fn( $table ) => $schema[ $table ] ) );
+	}
+
+	public function test_unreadable_candidate_schema_fails_closed(): void {
+		$this->expectExceptionMessage( 'database_schema_unavailable' );
+		EMCP_Update_Runtime::other_installs( array( 'wp_shop_options', 'wp_shop_posts' ), 'wp_', static fn() => array() );
 	}
 
 	private function install_gate( string $original = "<?php echo 'SITE';" ): void {

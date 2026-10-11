@@ -3,7 +3,7 @@ Contributors: mianshahzadraza
 Tags: elementor, mcp, ai, page-builder, automation
 Requires at least: 6.9
 Tested up to: 7.1
-Stable tag: 3.19.2
+Stable tag: 3.19.4
 Requires PHP: 8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -192,6 +192,14 @@ The admin screens ship compiled in `assets/admin/build/`. Their full source and 
 2. Connection configuration page with copy-paste configs.
 
 == Changelog ==
+
+= 3.19.3 =
+
+Cloud Safe Updates compatibility fixes for hosted WordPress sites, including Hostinger and WP Launcher.
+
+* Fixed: Hostinger AI history tables are checked by structure instead of being mistaken for another WordPress installation based on names. They remain included in snapshots and rollback; genuine overlapping installations and unreadable metadata still block updates.
+* Fixed: Standard writable MU plugins are included in snapshots and standalone recovery, including when an MU plugin fails. Custom MU-plugin paths, drop-ins and external object caches remain blocked when recovery cannot safely cover them.
+* Fixed: Preserve WP Launcher's root .wp-launcher-ready marker. Other unwritable WordPress files and unsafe symlinks still block updates.
 
 = 3.19.2 =
 
