@@ -344,6 +344,34 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString( 'href="https://example.test/"', file_get_contents( $dir . '/build/about/index.html' ) );
 	}
 
+	public function test_non_html_responses_are_never_written_as_pages(): void {
+		$this->web->pages['https://example.test/']           = array( '<a href="/feed/">Feed</a><link rel="stylesheet" href="/odd.css">' );
+		$this->web->pages['https://example.test/feed/']      = array( '<rss><item><title>&lt;script&gt;alert(1)&lt;/script&gt;</title></item></rss>', 'application/rss+xml; charset=UTF-8' );
+		$this->web->pages['https://example.test/odd.css']    = array( '<p>an html body behind a css url</p>', 'text/html' );
+		$r    = $this->runner();
+		$view = $r->start( 'full', array(), 'tab-a' );
+		$this->assertSame( 'done', $this->drive( $r, $view, 'tab-a' )['phase'] );
+		$dir = $this->base . '/' . $this->store->state( 'current' )['dir'];
+		$this->assertFileDoesNotExist( $dir . '/serve/feed/index.html' );
+		$this->assertFileDoesNotExist( $dir . '/build/feed/index.html' );
+		$this->assertFileDoesNotExist( $dir . '/serve/odd.css/index.html' );
+		$this->assertFileExists( $dir . '/build/assets/css/odd.css' );
+		$this->assertSame( 'not_html', $this->store->find( $view['generation'], 'https://example.test/feed/' )['error'] );
+	}
+
+	public function test_recheck_drops_a_page_that_stopped_answering_html(): void {
+		$r    = $this->runner();
+		$view = $r->start( 'full', array(), 'tab-a' );
+		for ( $i = 0; $i < 40 && 'rewrite' !== $this->store->state( 'run' )['phase']; $i++ ) {
+			$view = $r->step( $view['generation'], 'tab-a', 0 );
+		}
+		$this->web->pages['https://example.test/about/'] = array( '{"html":"<script>alert(1)</script>"}', 'application/json' );
+		$this->store->journal_add( 'https://example.test/about/' );
+		$this->assertSame( 'done', $this->drive( $r, $view, 'tab-a' )['phase'] );
+		$dir = $this->base . '/' . $this->store->state( 'current' )['dir'];
+		$this->assertFileDoesNotExist( $dir . '/serve/about/index.html' );
+	}
+
 	public function test_budget_handles_unlimited_execution_time(): void {
 		$old = ini_get( 'max_execution_time' );
 		ini_set( 'max_execution_time', '0' );

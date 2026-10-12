@@ -470,7 +470,15 @@ final class EMCP_Tools_Static_Site_Runner {
 				$run['stats']['errors']++;
 				continue;
 			}
-			$html = str_contains( $res['type'], 'text/html' ) || $this->paths->is_page( $row['url'] );
+			// The URL decides page or asset; a page is only written when the response
+			// really is HTML. A feed or plain-text endpoint at a page-shaped URL would
+			// otherwise be served later as text/html with content escaped only for
+			// XML or JSON.
+			$html = $this->paths->is_page( $row['url'] );
+			if ( $html && ! str_contains( $res['type'], 'text/html' ) ) {
+				$this->store->update_row( $row['id'], array( 'status' => 'skipped', 'error' => 'not_html', 'http_code' => $res['code'] ) );
+				continue;
+			}
 			$path = $html ? $this->paths->page_path( $row['url'] ) : $this->paths->output_path( $row['url'], $registry );
 			$size = EMCP_Tools_Static_Site_Files::write( EMCP_Tools_Static_Site_Paths::confine( $this->root( $run ), $path ), $res['body'] );
 			if ( $html ) {
@@ -480,12 +488,14 @@ final class EMCP_Tools_Static_Site_Runner {
 			if ( $run['stats']['bytes'] > self::BUILD_CAP ) {
 				throw new RuntimeException( 'build_too_large' );
 			}
-			$this->store->update_row( $row['id'], array( 'status' => 'fetched', 'file_path' => $path, 'content_type' => $html ? 'text/html' : $res['type'], 'content_hash' => md5( $res['body'] ), 'bytes' => strlen( $res['body'] ), 'http_code' => $res['code'] ) );
+			// An asset URL that answered HTML is stored as an opaque file, never rewritten as a page.
+			$type = $html ? 'text/html' : ( str_contains( $res['type'], 'text/html' ) ? 'application/octet-stream' : $res['type'] );
+			$this->store->update_row( $row['id'], array( 'status' => 'fetched', 'file_path' => $path, 'content_type' => $type, 'content_hash' => md5( $res['body'] ), 'bytes' => strlen( $res['body'] ), 'http_code' => $res['code'] ) );
 			if ( $html ) {
 				foreach ( EMCP_Tools_Static_Site_Extractor::from_html( $res['body'], 'pages' === $run['mode'], $this->site ) as $raw ) {
 					$this->enqueue( $run, $raw, $row['url'] );
 				}
-			} elseif ( str_contains( $res['type'], 'text/css' ) ) {
+			} elseif ( str_contains( $type, 'text/css' ) ) {
 				foreach ( EMCP_Tools_Static_Site_Extractor::from_css( $res['body'] ) as $raw ) {
 					$this->enqueue( $run, $raw, $row['url'] );
 				}
@@ -597,7 +607,7 @@ final class EMCP_Tools_Static_Site_Runner {
 			$serve = EMCP_Tools_Static_Site_Paths::confine( $this->dir( $run ) . '/serve', $row['file_path'] );
 			$build = EMCP_Tools_Static_Site_Paths::confine( $this->root( $run ), $row['file_path'] );
 			$res   = $fetcher->fetch( $row['url'], $deadline );
-			if ( ( $this->fn['gone'] )( $row['url'] ) || ! $res['ok'] ) {
+			if ( ( $this->fn['gone'] )( $row['url'] ) || ! $res['ok'] || ! str_contains( $res['type'], 'text/html' ) ) {
 				@unlink( $serve ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 				@unlink( $build ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 				$this->store->update_row( $row['id'], array( 'status' => 'error', 'error' => 'removed' ) );
