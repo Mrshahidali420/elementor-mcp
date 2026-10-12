@@ -8,7 +8,7 @@
 	margin: 0 0 8px;
 	font-size: 1.4rem;
 	font-weight: 600;
-	color: var(--emcp-text);
+	color: var(--emcp-ink);
 }
 
 .emcp-static .emcp-static__muted {
@@ -57,7 +57,7 @@
 	padding: 8px 12px;
 	border-radius: 8px;
 	background: var(--emcp-surface-2);
-	color: var(--emcp-text);
+	color: var(--emcp-ink);
 }
 
 .emcp-static .emcp-static__facts {
