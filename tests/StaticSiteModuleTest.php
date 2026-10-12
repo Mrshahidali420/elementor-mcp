@@ -55,4 +55,10 @@ final class StaticSiteModuleTest extends \PHPUnit\Framework\TestCase {
 		$this->assertFalse( EMCP_Tools_Static_Site_Module::sanitize( array( 'accept_self_signed' => true ), 'production' )['accept_self_signed'] );
 		$this->assertTrue( EMCP_Tools_Static_Site_Module::sanitize( array( 'accept_self_signed' => true ), 'local' )['accept_self_signed'] );
 	}
+
+	public function test_plain_title_decodes_entities_for_display(): void {
+		$this->assertSame( "Let\u{2019}s Keep In Touch", EMCP_Tools_Static_Site_Module::plain_title( 'Let&#8217;s Keep In Touch' ) );
+		$this->assertSame( 'Fish & Chips "Best"', EMCP_Tools_Static_Site_Module::plain_title( 'Fish &amp; Chips &quot;Best&quot;' ) );
+		$this->assertSame( 'a <b> c', EMCP_Tools_Static_Site_Module::plain_title( 'a &lt;b&gt; c' ) );
+	}
 }

@@ -69,7 +69,7 @@ final class EMCP_Tools_Admin_REST_Static_Site extends EMCP_Tools_Admin_REST_Cont
 		$out   = array();
 		foreach ( $query->posts as $id ) {
 			$post  = get_post( $id );
-			$out[] = array( 'id' => (int) $id, 'title' => get_the_title( $id ), 'url' => (string) get_permalink( $id ), 'type' => isset( $types[ $post->post_type ] ) ? $types[ $post->post_type ]->labels->singular_name : $post->post_type );
+			$out[] = array( 'id' => (int) $id, 'title' => EMCP_Tools_Static_Site_Module::plain_title( get_the_title( $id ) ), 'url' => (string) get_permalink( $id ), 'type' => isset( $types[ $post->post_type ] ) ? $types[ $post->post_type ]->labels->singular_name : $post->post_type );
 		}
 		return rest_ensure_response( array( 'results' => $out ) );
 	}

@@ -159,6 +159,11 @@ class EMCP_Tools_Static_Site_Module extends EMCP_Tools_Module {
 		return $out;
 	}
 
+	/** WordPress titles carry HTML entities; the screen prints text, so decode them. */
+	public static function plain_title( string $title ): string {
+		return html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
 	public static function settings(): array {
 		$stored = get_option( self::OPTION_SETTINGS, array() );
 		return self::sanitize( is_array( $stored ) ? $stored : array() );
