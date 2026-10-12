@@ -468,6 +468,12 @@ final class EMCP_Tools_Static_Site_Runner {
 			if ( microtime( true ) >= $deadline ) {
 				break;
 			}
+			// A linked password-protected or unpublished page would be captured as
+			// its anonymous form and served to visitors who can never unlock it.
+			if ( $this->paths->is_page( $row['url'] ) && ( $this->fn['gone'] )( $row['url'] ) ) {
+				$this->store->update_row( $row['id'], array( 'status' => 'skipped', 'error' => 'not_public' ) );
+				continue;
+			}
 			$res = $fetcher->fetch( $row['url'], $deadline );
 			if ( 'no_time' === $res['error'] ) {
 				break;
@@ -752,7 +758,15 @@ final class EMCP_Tools_Static_Site_Runner {
 
 	private function cancel_call( array $run ) {
 		$out = '' !== $run['cloud_id'] ? $this->credits->cancel( $run['cloud_id'], $run['token'] ) : $this->credits->void( $run['request_id'], $run['token'] );
-		if ( in_array( $out['kind'], array( 'ok', 'voided' ), true ) ) {
+		// Cloud no longer knows this generation for this site (another account,
+		// a token it rejects, or no connection at all): retrying can never
+		// succeed, so close it here; Cloud's sweeper settles any open row.
+		$lost = 'refused' === $out['kind'] && ( in_array( (int) $out['status'], array( 403, 404 ), true ) || in_array( (string) $out['code'], array( 'not_connected', 'site_not_registered' ), true ) );
+		if ( $lost ) {
+			$run['error'] = 'cancel_unconfirmed';
+			$out['data']  = array( 'refunded' => false );
+		}
+		if ( $lost || in_array( $out['kind'], array( 'ok', 'voided' ), true ) ) {
 			$res = $this->apply( $run, static fn( array $now ) => 'cancelling' === $now['cloud'] ? null : false );
 			if ( 'applied:deleted' === $res ) {
 				$this->store->drop_rows( $run['generation'] );
@@ -848,6 +862,9 @@ final class EMCP_Tools_Static_Site_Runner {
 		$verify  = empty( $this->settings['accept_self_signed'] );
 		$fetcher = ( $this->fn['fetch'] )( new EMCP_Tools_Static_Site_Paths( $this->site ), array(), EMCP_Tools_Static_Site_Files::random_hex( 16 ), $verify );
 		$res     = $fetcher->fetch( $this->site . '/', microtime( true ) + 15 );
+		if ( in_array( $res['error'] ?? '', array( 'offsite_redirect', 'too_many_redirects' ), true ) ) {
+			return new WP_Error( 'site_redirects', __( 'This site\'s home page redirects to a different address (for example http to https, or to www), so every page would fail and nothing was reserved. Set the WordPress Address and Site Address in Settings, General to the address visitors use, then try again.', 'emcp-tools' ), array( 'status' => 409 ) );
+		}
 		if ( ! empty( $res['ok'] ) || 'transport' !== ( $res['error'] ?? '' ) ) {
 			return true;
 		}

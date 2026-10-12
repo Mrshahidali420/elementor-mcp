@@ -424,4 +424,43 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame( 'reserved', $view['cloud'] );
 		$this->assertSame( array( 'https://example.test/' ), $this->web->calls );
 	}
+
+	public function test_redirecting_home_page_is_refused_before_anything_is_reserved(): void {
+		$this->web->pages['https://example.test/'] = 'offsite_redirect';
+		$r = $this->runner( array( 'reach' => null ) )->start( 'full', array(), 'tab-a' );
+		$this->assertInstanceOf( WP_Error::class, $r );
+		$this->assertSame( 'site_redirects', $r->get_error_code() );
+		$this->assertSame( array(), $this->credits->calls );
+		$this->assertNull( $this->store->state( 'run' ) );
+	}
+
+	public function test_cancel_refused_as_unknown_by_cloud_clears_the_record(): void {
+		$this->credits->answers['cancel'] = array( EMCP_Test_Static_Site_Credits::answer( 'refused', 404, 'not_found' ) );
+		$r    = $this->runner();
+		$view = $r->start( 'full', array(), 'tab-a' );
+		$out  = $r->cancel( $view['generation'], 'tab-a', 0 );
+		$this->assertSame( 'cancelled', $out['phase'] );
+		$this->assertFalse( $out['refunded'] );
+		$this->assertNull( $this->store->state( 'run' ) );
+		$this->assertSame( array(), $this->lease_store->rows );
+		$this->assertIsArray( $r->start( 'full', array(), 'tab-a' ) );
+	}
+
+	public function test_cancel_refused_for_another_reason_keeps_the_record(): void {
+		$this->credits->answers['cancel'] = array( EMCP_Test_Static_Site_Credits::answer( 'refused', 409, 'something_else' ) );
+		$r    = $this->runner();
+		$view = $r->start( 'full', array(), 'tab-a' );
+		$r->cancel( $view['generation'], 'tab-a', 0 );
+		$this->assertSame( 'cancelling', $this->store->state( 'run' )['cloud'] );
+	}
+
+	public function test_linked_password_protected_page_is_never_fetched_or_written(): void {
+		$r    = $this->runner( array( 'gone' => static fn( string $url ) => 'https://example.test/about/' === $url ) );
+		$view = $r->start( 'full', array(), 'tab-a' );
+		$this->assertSame( 'done', $this->drive( $r, $view, 'tab-a' )['phase'] );
+		$this->assertNotContains( 'https://example.test/about/', $this->web->calls );
+		$dir = $this->base . '/' . $this->store->state( 'current' )['dir'];
+		$this->assertFileDoesNotExist( $dir . '/serve/about/index.html' );
+		$this->assertFileDoesNotExist( $dir . '/build/about/index.html' );
+	}
 }
