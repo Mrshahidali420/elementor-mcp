@@ -55,6 +55,7 @@ final class EMCP_Tools_Static_Site_Runner {
 			'fetch'     => $deps['fetch'] ?? static fn( EMCP_Tools_Static_Site_Paths $p, array $exclude, string $key, bool $verify ) => new EMCP_Tools_Static_Site_Fetcher( $p, $exclude, $key, $verify ),
 			'discover'  => $deps['discover'] ?? array( 'EMCP_Tools_Static_Site_Discovery', 'collect' ),
 			'preflight' => $deps['preflight'] ?? array( $this, 'preflight' ),
+			'reach'     => $deps['reach'] ?? array( $this, 'reachable' ),
 			'gone'      => $deps['gone'] ?? array( $this, 'page_gone' ),
 			'log'       => $deps['log'] ?? array( $this, 'log' ),
 		);
@@ -124,6 +125,12 @@ final class EMCP_Tools_Static_Site_Runner {
 
 	public function start( string $mode, array $urls, string $owner ) {
 		$mode = 'pages' === $mode ? 'pages' : 'full';
+		// Before anything is reserved and outside the site lock: a run that
+		// cannot reach this site would spend a generation and export nothing.
+		$reach = ( $this->fn['reach'] )();
+		if ( is_wp_error( $reach ) ) {
+			return $reach;
+		}
 		$made = EMCP_Tools_Static_Site_Locks::with(
 			array( $this->site_lock() ),
 			function () use ( $mode, $urls, $owner ) {
@@ -828,6 +835,27 @@ final class EMCP_Tools_Static_Site_Runner {
 			return new WP_Error( 'low_disk_space', __( 'Less than 256 MB of disk space is free.', 'emcp-tools' ), array( 'status' => 409 ) );
 		}
 		return true;
+	}
+
+	/**
+	 * Fetch the home page once, the way the crawler will. Only a transport
+	 * failure refuses: an HTTP error on the home page still lets the run
+	 * export the pages that work.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function reachable() {
+		$verify  = empty( $this->settings['accept_self_signed'] );
+		$fetcher = ( $this->fn['fetch'] )( new EMCP_Tools_Static_Site_Paths( $this->site ), array(), EMCP_Tools_Static_Site_Files::random_hex( 16 ), $verify );
+		$res     = $fetcher->fetch( $this->site . '/', microtime( true ) + 15 );
+		if ( ! empty( $res['ok'] ) || 'transport' !== ( $res['error'] ?? '' ) ) {
+			return true;
+		}
+		$message = __( 'WordPress could not load this site\'s home page from the server, so nothing was reserved. Check that the site answers at its own address from the server.', 'emcp-tools' );
+		if ( $verify && in_array( wp_get_environment_type(), array( 'local', 'development' ), true ) ) {
+			$message = __( 'WordPress could not load this site\'s home page, so nothing was reserved. Local sites often use a self-signed certificate: turn on "Accept this site\'s self-signed certificate" in Settings and try again.', 'emcp-tools' );
+		}
+		return new WP_Error( 'site_unreachable', $message, array( 'status' => 409 ) );
 	}
 
 	/** A page that must not be served: password, unpublished, or gone. */

@@ -13,6 +13,11 @@ if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 		return vsprintf( '%s%s-%s-%s-%s-%s%s%s', str_split( bin2hex( $b ), 4 ) );
 	}
 }
+if ( ! function_exists( 'wp_get_environment_type' ) ) {
+	function wp_get_environment_type() {
+		return $GLOBALS['emcp_test_env_type'] ?? 'production';
+	}
+}
 if ( ! function_exists( 'is_multisite' ) ) {
 	function is_multisite() {
 		return false;
@@ -75,6 +80,7 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 				'discover'  => static fn( array $cursor ) => array( 'urls' => array( 'https://example.test/' ), 'cursor' => null ),
 				'budget'    => 20.0,
 				'preflight' => static fn() => true,
+				'reach'     => static fn() => true,
 				'gone'      => static fn() => false,
 				'log'       => static function () {},
 			)
@@ -386,5 +392,36 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 		$view = $r->start( 'full', array(), 'tab-a' );
 		$this->assertSame( 'done', $this->drive( $r, $view, 'tab-a' )['phase'] );
 		$this->assertSame( array(), EMCP_Tools_Static_Site_Locks::held() );
+	}
+
+	public function test_unreachable_site_is_refused_before_anything_is_reserved(): void {
+		$this->web->pages['https://example.test/'] = 'transport';
+		$r = $this->runner( array( 'reach' => null ) )->start( 'full', array(), 'tab-a' );
+		$this->assertInstanceOf( WP_Error::class, $r );
+		$this->assertSame( 'site_unreachable', $r->get_error_code() );
+		$this->assertSame( array(), $this->credits->calls );
+		$this->assertNull( $this->store->state( 'run' ) );
+		$this->assertSame( array(), $this->lease_store->rows );
+		$this->assertStringNotContainsString( 'self-signed', $r->get_error_message() );
+	}
+
+	public function test_unreachable_local_site_names_the_certificate_setting(): void {
+		$GLOBALS['emcp_test_env_type']             = 'local';
+		$this->web->pages['https://example.test/'] = 'transport';
+		try {
+			$r = $this->runner( array( 'reach' => null ) )->start( 'full', array(), 'tab-a' );
+		} finally {
+			unset( $GLOBALS['emcp_test_env_type'] );
+		}
+		$this->assertSame( 'site_unreachable', $r->get_error_code() );
+		$this->assertStringContainsString( 'self-signed', $r->get_error_message() );
+	}
+
+	public function test_reachable_site_reserves_as_before(): void {
+		$this->web->pages['https://example.test/'] = array( '<html></html>' );
+		$view = $this->runner( array( 'reach' => null ) )->start( 'full', array(), 'tab-a' );
+		$this->assertIsArray( $view );
+		$this->assertSame( 'reserved', $view['cloud'] );
+		$this->assertSame( array( 'https://example.test/' ), $this->web->calls );
 	}
 }
