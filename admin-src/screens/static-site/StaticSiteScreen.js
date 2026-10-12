@@ -337,11 +337,22 @@ export function StaticSiteScreen( { data } ) {
 				{ parse: false }
 			);
 			const blob = await res.blob();
+			const disposition =
+				( res.headers && res.headers.get( 'Content-Disposition' ) ) ||
+				'';
+			const named = /filename="([^"]+)"/.exec( disposition );
+			const url = window.URL.createObjectURL( blob );
 			const link = document.createElement( 'a' );
-			link.href = URL.createObjectURL( blob );
-			link.download = `static-site-${ state.current.generation.slice( 0, 8 ) }.zip`;
+			link.href = url;
+			link.download = named
+				? named[ 1 ]
+				: `static-site-${ state.current.generation.slice( 0, 8 ) }.zip`;
+			// Chromium cancels a download whose blob URL is revoked before
+			// the click is handled, so keep it for a moment.
+			document.body.appendChild( link );
 			link.click();
-			URL.revokeObjectURL( link.href );
+			link.remove();
+			window.setTimeout( () => window.URL.revokeObjectURL( url ), 1000 );
 		} catch ( e ) {
 			toast.error( errorMessage( e ) );
 		}

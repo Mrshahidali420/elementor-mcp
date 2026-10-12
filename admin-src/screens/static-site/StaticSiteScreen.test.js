@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import apiFetch from '@wordpress/api-fetch';
 import { AppProviders } from '@emcp/ui';
 import { StaticSiteScreen } from './StaticSiteScreen';
@@ -151,5 +151,62 @@ describe( 'StaticSiteScreen', () => {
 		expect( screen.getByLabelText( 'Delivery' ) ).toHaveValue( 'zip' );
 		expect( screen.getByLabelText( 'Links' ) ).toBeInTheDocument();
 		expect( screen.getByLabelText( 'Exclude URLs' ) ).toBeInTheDocument();
+	} );
+
+	it( 'downloads the ZIP under the server name and keeps the blob URL until the click is done', async () => {
+		jest.useFakeTimers();
+		const created = 'blob:zip-1';
+		window.URL.createObjectURL = jest.fn( () => created );
+		window.URL.revokeObjectURL = jest.fn();
+		const clicks = [];
+		const click = jest
+			.spyOn( window.HTMLAnchorElement.prototype, 'click' )
+			.mockImplementation( function () {
+				clicks.push( {
+					download: this.download,
+					attached: document.body.contains( this ),
+					revokedBefore: window.URL.revokeObjectURL.mock.calls.length,
+				} );
+			} );
+		const d = data( {
+			current: {
+				generation: '0f0f0f0f-0000-4000-8000-000000000001',
+				date: '2026-10-12T08:00:00+00:00',
+				pages: 2,
+				files: 3,
+				bytes: 1000,
+				delivery: 'zip',
+				zip: 'site.zip',
+			},
+		} );
+		mount( d );
+		apiFetch.mockResolvedValue( {
+			blob: () => Promise.resolve( new Blob( [ 'PK' ] ) ),
+			headers: {
+				get: ( h ) =>
+					'Content-Disposition' === h
+						? 'attachment; filename="example-static-2026-10-12.zip"'
+						: null,
+			},
+		} );
+		await act( async () => {
+			fireEvent.click(
+				screen.getByRole( 'button', { name: 'Download ZIP' } )
+			);
+		} );
+		expect( clicks ).toEqual( [
+			{
+				download: 'example-static-2026-10-12.zip',
+				attached: true,
+				revokedBefore: 0,
+			},
+		] );
+		expect( window.URL.revokeObjectURL ).not.toHaveBeenCalled();
+		act( () => {
+			jest.runOnlyPendingTimers();
+		} );
+		expect( window.URL.revokeObjectURL ).toHaveBeenCalledWith( created );
+		click.mockRestore();
+		jest.useRealTimers();
 	} );
 } );
