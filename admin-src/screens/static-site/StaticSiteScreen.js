@@ -20,6 +20,7 @@ import {
 	useToast,
 } from '@emcp/ui';
 import { driveBuild } from './driver';
+import { stopReason } from './messages';
 
 const API = '/emcp-tools/v1/admin/static-site';
 const PHASES = [
@@ -567,7 +568,9 @@ export function StaticSiteScreen( { data } ) {
 								valueText={ `${ doneCount } / ${ total }` }
 							/>
 						) }
-						{ 'uncertain' === run.cloud && (
+						{ [ 'uncertain', 'reserving' ].includes(
+							run.cloud
+						) && (
 							<Notice
 								tone="info"
 								actions={
@@ -682,11 +685,11 @@ export function StaticSiteScreen( { data } ) {
 					) && (
 						<Notice tone="danger">
 							{ sprintf(
-								/* translators: %s: error code. */ __(
-									'The last generation stopped: %s.',
+								/* translators: %s: why the generation stopped. */ __(
+									'The last generation stopped because %s.',
 									'emcp-tools'
 								),
-								state.lastCancel.error
+								stopReason( state.lastCancel.error )
 							) }
 						</Notice>
 					) }
@@ -751,6 +754,12 @@ export function StaticSiteScreen( { data } ) {
 						<dd>{ state.current.pages }</dd>
 						<dt>{ __( 'Files', 'emcp-tools' ) }</dt>
 						<dd>{ state.current.files }</dd>
+						{ state.current.errors > 0 && (
+							<>
+								<dt>{ __( 'Errors', 'emcp-tools' ) }</dt>
+								<dd>{ state.current.errors }</dd>
+							</>
+						) }
 						<dt>{ __( 'Size', 'emcp-tools' ) }</dt>
 						<dd>{ `${ ( state.current.bytes / 1048576 ).toFixed( 1 ) } MB` }</dd>
 					</dl>

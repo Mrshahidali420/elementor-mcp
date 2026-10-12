@@ -248,4 +248,63 @@ describe( 'StaticSiteScreen', () => {
 			)
 		).toBeInTheDocument();
 	} );
+
+	it( 'offers Check again while the reservation is still being made', () => {
+		mount(
+			data( {
+				run: {
+					generation: '6c1f2f7a-0000-4000-8000-000000000003',
+					mode: 'full',
+					phase: 'reserve',
+					cloud: 'reserving',
+					owner: 'tab-other',
+					epoch: 0,
+					counts: {},
+					error: '',
+					started_at: 0,
+					promoted: false,
+					lease_active: true,
+				},
+			} )
+		);
+		expect(
+			screen.getByRole( 'button', { name: 'Check again' } )
+		).toBeInTheDocument();
+	} );
+
+	it( 'explains why the last generation stopped in words', () => {
+		mount(
+			data( {
+				lastCancel: {
+					generation: 'g',
+					refunded: false,
+					error: 'site_changing',
+					at: 0,
+				},
+			} )
+		);
+		expect( screen.queryByText( /site_changing/ ) ).not.toBeInTheDocument();
+		expect(
+			screen.getByText( /kept changing while it was being generated/ )
+		).toBeInTheDocument();
+	} );
+
+	it( 'shows the error count of the last generation when there were errors', () => {
+		const current = {
+			generation: '0f0f0f0f-0000-4000-8000-000000000009',
+			date: '2026-10-12T08:00:00+00:00',
+			pages: 2,
+			files: 3,
+			bytes: 1000,
+			errors: 4,
+			delivery: 'zip',
+			zip: 'site.zip',
+		};
+		const { unmount } = mount( data( { current } ) );
+		expect( screen.getByText( 'Errors' ) ).toBeInTheDocument();
+		expect( screen.getByText( '4' ) ).toBeInTheDocument();
+		unmount();
+		mount( data( { current: { ...current, errors: 0 } } ) );
+		expect( screen.queryByText( 'Errors' ) ).not.toBeInTheDocument();
+	} );
 } );

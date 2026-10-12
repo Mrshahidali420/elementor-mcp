@@ -111,4 +111,23 @@ describe( 'driveBuild', () => {
 		expect( s.api.step ).toHaveBeenCalledTimes( 1 );
 		expect( onDone ).not.toHaveBeenCalled();
 	} );
+
+	it( 'stops when the server no longer knows the generation', async () => {
+		const s = scripted( [ { phase: 'none' } ] );
+		const onDone = jest.fn();
+		driveBuild( {
+			api: s.api,
+			generation: 'g',
+			owner: 'o',
+			epoch: 0,
+			onProgress: () => {},
+			onDone,
+			wait,
+		} );
+		for ( let i = 0; i < 10; i++ ) {
+			await settle();
+		}
+		expect( onDone ).toHaveBeenCalledWith( 'none', { phase: 'none' } );
+		expect( s.api.step ).toHaveBeenCalledTimes( 1 );
+	} );
 } );

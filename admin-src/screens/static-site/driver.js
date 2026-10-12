@@ -67,7 +67,10 @@ export function driveBuild( {
 			if ( stopped ) {
 				return;
 			}
-			if ( view && [ 'done', 'cancelled' ].includes( view.phase ) ) {
+			if (
+				view &&
+				[ 'done', 'cancelled', 'none' ].includes( view.phase )
+			) {
 				onDone( view.phase, view );
 				return;
 			}
