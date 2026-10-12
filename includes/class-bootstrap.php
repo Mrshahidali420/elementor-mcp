@@ -210,6 +210,8 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-history.php';
 		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-redirects-data.php';
 		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-redirects.php';
+		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-static-site-data.php';
+		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-static-site.php';
 		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-log-data.php';
 		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-log.php';
 		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-dashboard.php';
@@ -229,6 +231,9 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/class-search-index.php';
 		require_once EMCP_TOOLS_DIR . 'includes/redirects/class-redirect-store.php';
 		require_once EMCP_TOOLS_DIR . 'includes/redirects/class-redirect-handler.php';
+		foreach ( array( 'paths', 'registry', 'files', 'extractor', 'rewriter', 'fetcher', 'db', 'store', 'locks', 'credits', 'discovery', 'packager', 'runner', 'server', 'deny-check' ) as $emcp_ss ) {
+			require_once EMCP_TOOLS_DIR . 'includes/static-site/class-static-site-' . $emcp_ss . '.php';
+		}
 		require_once EMCP_TOOLS_DIR . 'includes/class-content-mirror.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-admin-bar.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-github-updater.php';
@@ -361,6 +366,7 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/themer/php/class-themer-php-admin.php';
 		require_once EMCP_TOOLS_DIR . 'includes/modules/class-themer-module.php';
 		require_once EMCP_TOOLS_DIR . 'includes/modules/class-redirect-module.php';
+		require_once EMCP_TOOLS_DIR . 'includes/modules/static-site/class-static-site-module.php';
 		// Pro-tier units (SEO/a11y helpers + abilities, widget generator + builder
 		// abilities, system-kit abilities, Pro brand kits, AI Chat). These ship in
 		// the private Pro overlay (pro/) and are absent from the free build; the
@@ -562,6 +568,7 @@ class EMCP_Tools_Bootstrap {
 		$emcp_modules->register( new EMCP_Tools_Templates_Module() );
 		$emcp_modules->register( new EMCP_Tools_Themer_Module() );
 		$emcp_modules->register( new EMCP_Tools_Redirect_Module() );
+		$emcp_modules->register( new EMCP_Tools_Static_Site_Module() );
 		$emcp_modules->register( new EMCP_Tools_Agent_Skills_Module() );
 		$emcp_modules->register( new EMCP_Tools_SVG_Support_Module() );
 		$emcp_modules->register( new EMCP_Tools_Cloud_Module() );
@@ -594,6 +601,9 @@ class EMCP_Tools_Bootstrap {
 		( new EMCP_Tools_Admin_REST_Changelog() )->register();
 		if ( class_exists( 'EMCP_Tools_Redirect_Module' ) && EMCP_Tools_Redirect_Module::is_enabled() ) {
 			( new EMCP_Tools_Admin_REST_Redirects() )->register(); // The table exists only while the module is on.
+		}
+		if ( class_exists( 'EMCP_Tools_Static_Site_Module' ) && EMCP_Tools_Static_Site_Module::is_enabled() ) {
+			( new EMCP_Tools_Admin_REST_Static_Site() )->register();
 		}
 		( new EMCP_Tools_Admin_REST_Sandbox() )->register();
 

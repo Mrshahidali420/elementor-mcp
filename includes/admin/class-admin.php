@@ -194,6 +194,7 @@ class EMCP_Tools_Admin {
 				self::PAGE_SLUG . '-ai-chat'    => __( 'AI Chat', 'emcp-tools' ),
 				self::PAGE_SLUG . '-context'    => __( 'Context', 'emcp-tools' ),
 				self::PAGE_SLUG . '-redirects'  => __( 'Redirects', 'emcp-tools' ),
+				self::PAGE_SLUG . '-static-site' => __( 'Static Site', 'emcp-tools' ),
 				self::PAGE_SLUG . '-migrate'    => __( 'Backup & Migrate', 'emcp-tools' ),
 				self::PAGE_SLUG . '-memory'     => __( 'Memory', 'emcp-tools' ),
 				self::PAGE_SLUG . '-prompts'    => __( 'Prompts', 'emcp-tools' ),
@@ -219,6 +220,10 @@ class EMCP_Tools_Admin {
 			// Redirects tab is gated by the Redirect Manager module.
 			if ( ! $this->module_tab_visible( 'redirects' ) ) {
 				unset( $this->submenus[ self::PAGE_SLUG . '-redirects' ] );
+			}
+			// Static Site tab is gated by its module (free; needs the Cloud module).
+			if ( ! $this->module_tab_visible( 'static-site' ) ) {
+				unset( $this->submenus[ self::PAGE_SLUG . '-static-site' ] );
 			}
 			// Backup & Migrate tab is gated by the Migrate (Pro) module.
 			if ( ! $this->module_tab_visible( 'migrate' ) ) {
@@ -260,6 +265,8 @@ class EMCP_Tools_Admin {
 				return 'history';
 			case self::PAGE_SLUG . '-redirects':
 				return 'redirects';
+			case self::PAGE_SLUG . '-static-site':
+				return 'static-site';
 			case self::PAGE_SLUG . '-migrate':
 				return 'migrate';
 			case self::PAGE_SLUG . '-modules':
@@ -321,6 +328,9 @@ class EMCP_Tools_Admin {
 		EMCP_Tools_Admin_REST_Changelog::register_screen();
 		if ( class_exists( 'EMCP_Tools_Redirect_Module' ) && EMCP_Tools_Redirect_Module::is_enabled() ) {
 			EMCP_Tools_Admin_REST_Redirects::register_screen();
+		}
+		if ( class_exists( 'EMCP_Tools_Static_Site_Module' ) && EMCP_Tools_Static_Site_Module::is_enabled() ) {
+			EMCP_Tools_Admin_REST_Static_Site::register_screen();
 		}
 		EMCP_Tools_Admin_REST_Sandbox::register_screens();
 		if ( class_exists( 'EMCP_Tools_Admin_REST_Templates' ) ) {

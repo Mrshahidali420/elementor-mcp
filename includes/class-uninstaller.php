@@ -157,9 +157,13 @@ class EMCP_Tools_Uninstaller {
 	private static function remove_remaining_data(): void {
 		global $wpdb;
 
+		// Static Site output: generated copies of pages, never user content.
+		require_once EMCP_TOOLS_DIR . 'includes/static-site/class-static-site-files.php';
+		EMCP_Tools_Static_Site_Files::remove_tree( rtrim( str_replace( '\\', '/', WP_CONTENT_DIR ), '/' ) . '/emcp-static' );
+
 		// History, redirects, search index and Backup & Migrate (its paired
 		// targets hold connector secrets). OAuth's tables went with its store.
-		foreach ( array( 'emcp_changes', 'emcp_change_blobs', 'emcp_redirects', 'emcp_search_index', 'emcp_migrate_backups', 'emcp_migrate_jobs', 'emcp_migrate_targets' ) as $table ) {
+		foreach ( array( 'emcp_changes', 'emcp_change_blobs', 'emcp_redirects', 'emcp_search_index', 'emcp_migrate_backups', 'emcp_migrate_jobs', 'emcp_migrate_targets', 'emcp_static_pages', 'emcp_static_state', 'emcp_static_invalidations' ) as $table ) {
 			$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . $table ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared -- fixed plugin table names.
 		}
 
