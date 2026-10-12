@@ -26,6 +26,7 @@ final class EMCP_Tools_Static_Site_Packager {
 		$present = array();
 		$added   = array();
 		$missing = array();
+		$failed  = array();
 		foreach ( $rows as $row ) {
 			$name = (string) $row['file_path'];
 			if ( false !== $zip->locateName( $name ) ) {
@@ -40,14 +41,17 @@ final class EMCP_Tools_Static_Site_Packager {
 				$missing[] = (int) $row['id'];
 				continue;
 			}
+			// A refused file is reported, never left saved: Package would retry it forever.
 			if ( $zip->addFile( $file, $name ) ) {
 				$added[] = (int) $row['id'];
+			} else {
+				$failed[] = (int) $row['id'];
 			}
 		}
 		if ( true !== $zip->close() ) {
 			return array( 'added' => 0, 'error' => 'zip_close_failed' );
 		}
-		$mark( array_merge( $present, $added ), $missing );
+		$mark( array_merge( $present, $added ), $missing, $failed );
 		return array( 'added' => count( $added ), 'error' => '' );
 	}
 }

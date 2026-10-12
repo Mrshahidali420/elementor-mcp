@@ -463,4 +463,17 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertFileDoesNotExist( $dir . '/serve/about/index.html' );
 		$this->assertFileDoesNotExist( $dir . '/build/about/index.html' );
 	}
+
+	public function test_a_late_step_reports_how_the_generation_really_ended(): void {
+		$r    = $this->runner();
+		$view = $r->start( 'full', array(), 'tab-a' );
+		$out  = $r->cancel( $view['generation'], 'tab-a', 0 );
+		$this->assertSame( 'cancelled', $out['phase'] );
+		$late = $r->step( $view['generation'], 'tab-a', 0 );
+		$this->assertSame( 'cancelled', $late['phase'] );
+		$this->assertSame( 'none', $r->step( '00000000-0000-4000-8000-0000000000ff', 'tab-a', 0 )['phase'] );
+		$done = $this->drive( $r, $r->start( 'full', array(), 'tab-a' ), 'tab-a' );
+		$this->assertSame( 'done', $done['phase'] );
+		$this->assertSame( 'done', $r->step( $done['generation'], 'tab-a', 0 )['phase'] );
+	}
 }

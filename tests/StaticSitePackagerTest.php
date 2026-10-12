@@ -68,4 +68,19 @@ final class StaticSitePackagerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame( 2, $zip->numFiles );
 		$zip->close();
 	}
+
+	public function test_a_file_the_archive_refuses_is_reported_not_retried(): void {
+		EMCP_Tools_Static_Site_Packager::$factory = static fn() => new class() extends ZipArchive {
+			#[\ReturnTypeWillChange]
+			public function addFile( $filepath, $entryname = '', $start = 0, $length = 0, $flags = ZipArchive::FL_OVERWRITE ): bool {
+				return 'about/index.html' === $entryname ? false : parent::addFile( $filepath, $entryname, $start, $length, $flags );
+			}
+		};
+		$marked = array();
+		$r      = EMCP_Tools_Static_Site_Packager::zip_batch( $this->root . '/site.zip', $this->root . '/build', $this->rows(), function ( $ok, $missing, $failed = array() ) use ( &$marked ) {
+			$marked = array( $ok, $missing, $failed );
+		}, microtime( true ) + 20 );
+		$this->assertSame( '', $r['error'] );
+		$this->assertSame( array( array( 1, 3 ), array( 4 ), array( 2 ) ), $marked );
+	}
 }

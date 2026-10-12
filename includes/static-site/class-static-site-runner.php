@@ -298,10 +298,26 @@ final class EMCP_Tools_Static_Site_Runner {
 		return is_array( $current ) && ( $current['dir'] ?? '' ) === $run['dir'];
 	}
 
+	/**
+	 * How a generation without a record ended, for a tab that steps late:
+	 * live, cancelled (possibly from another tab), or unknown.
+	 */
+	private function ended( string $gen ): array {
+		$current = (array) $this->store->state( 'current' );
+		if ( ( $current['generation'] ?? '' ) === $gen ) {
+			return array( 'phase' => 'done', 'generation' => $gen );
+		}
+		$last = get_option( 'emcp_tools_static_last_cancel', null );
+		if ( is_array( $last ) && ( $last['generation'] ?? '' ) === $gen ) {
+			return array( 'phase' => 'cancelled', 'generation' => $gen, 'error' => (string) ( $last['error'] ?? '' ), 'refunded' => ! empty( $last['refunded'] ) );
+		}
+		return array( 'phase' => 'none', 'generation' => $gen );
+	}
+
 	public function step( string $gen, string $owner, int $epoch ) {
 		$run = $this->store->state( 'run' );
 		if ( null === $run ) {
-			return array( 'phase' => 'done', 'generation' => $gen );
+			return $this->ended( $gen );
 		}
 		if ( $this->promoted( $run ) || 'complete' === $run['phase'] ) {
 			$ok = $this->check( $run, $gen, $owner, $epoch );
@@ -569,9 +585,12 @@ final class EMCP_Tools_Static_Site_Runner {
 				$this->dir( $run ) . '/zips/' . $run['zip'],
 				$this->root( $run ),
 				$rows,
-				static function ( array $zipped, array $missing ) use ( $store ) {
+				static function ( array $zipped, array $missing, array $failed = array() ) use ( $store ) {
 					foreach ( $zipped as $id ) {
 						$store->update_row( $id, array( 'status' => 'zipped' ) );
+					}
+					foreach ( $failed as $id ) {
+						$store->update_row( $id, array( 'status' => 'error', 'error' => 'zip_add_failed' ) );
 					}
 					foreach ( $missing as $id ) {
 						$store->update_row( $id, array( 'status' => 'error', 'error' => 'missing_file' ) );
