@@ -15,6 +15,9 @@ final class EMCP_Tools_Static_Site_Extractor {
 	const ASSET_EXT = 'js|css|woff2?|ttf|eot|otf|png|jpe?g|gif|webp|avif|svg|ico|mp4|webm|mp3|pdf';
 
 	/** @return string[] */
+	/** Link relations that load something the page itself needs. */
+	const ASSET_RELS = array( 'stylesheet', 'icon', 'shortcut', 'apple-touch-icon', 'apple-touch-icon-precomposed', 'mask-icon', 'preload', 'modulepreload', 'prefetch', 'manifest' );
+
 	public static function from_html( string $html, bool $assets_only, string $site_url ): array {
 		if ( '' === trim( $html ) ) {
 			return array();
@@ -32,6 +35,11 @@ final class EMCP_Tools_Static_Site_Extractor {
 			}
 		}
 		foreach ( $dom->getElementsByTagName( 'link' ) as $el ) {
+			// A selected-pages run keeps to the chosen pages: rel=next, prev,
+			// alternate or canonical point at other pages, not at their assets.
+			if ( $assets_only && ! array_intersect( preg_split( '/\s+/', strtolower( trim( $el->getAttribute( 'rel' ) ) ) ), self::ASSET_RELS ) ) {
+				continue;
+			}
 			$found[] = $el->getAttribute( 'href' );
 		}
 		foreach ( array( 'script', 'img', 'source' ) as $tag ) {

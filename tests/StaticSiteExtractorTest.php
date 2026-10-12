@@ -39,4 +39,17 @@ final class StaticSiteExtractorTest extends \PHPUnit\Framework\TestCase {
 	public function test_empty_html_is_fine(): void {
 		$this->assertSame( array(), EMCP_Tools_Static_Site_Extractor::from_html( '', false, 'https://example.test' ) );
 	}
+
+	public function test_assets_only_follows_asset_links_but_not_page_links(): void {
+		$html  = '<link rel="next" href="/page/2/"><link rel="alternate" hreflang="fr" href="/fr/"><link rel="canonical" href="/x/"><link rel="Stylesheet" href="/s.css"><link rel="icon" href="/i.png"><link rel="preload" as="font" href="/f.woff2"><link rel="manifest" href="/site.webmanifest">';
+		$found = EMCP_Tools_Static_Site_Extractor::from_html( $html, true, 'https://example.test' );
+		foreach ( array( '/s.css', '/i.png', '/f.woff2', '/site.webmanifest' ) as $u ) {
+			$this->assertContains( $u, $found, $u );
+		}
+		foreach ( array( '/page/2/', '/fr/', '/x/' ) as $u ) {
+			$this->assertNotContains( $u, $found, $u );
+		}
+		$all = EMCP_Tools_Static_Site_Extractor::from_html( $html, false, 'https://example.test' );
+		$this->assertContains( '/page/2/', $all );
+	}
 }
