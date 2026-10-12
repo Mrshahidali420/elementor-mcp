@@ -7,6 +7,13 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) {
+	function wp_clear_scheduled_hook( $hook ) {
+		$GLOBALS['emcp_test_cleared_crons'][] = $hook;
+		return 0;
+	}
+}
+
 final class StaticSiteModuleTest extends \PHPUnit\Framework\TestCase {
 
 	protected function setUp(): void {
@@ -60,5 +67,22 @@ final class StaticSiteModuleTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame( "Let\u{2019}s Keep In Touch", EMCP_Tools_Static_Site_Module::plain_title( 'Let&#8217;s Keep In Touch' ) );
 		$this->assertSame( 'Fish & Chips "Best"', EMCP_Tools_Static_Site_Module::plain_title( 'Fish &amp; Chips &quot;Best&quot;' ) );
 		$this->assertSame( 'a <b> c', EMCP_Tools_Static_Site_Module::plain_title( 'a &lt;b&gt; c' ) );
+	}
+
+	public function test_options_read_on_every_request_are_autoloaded(): void {
+		EMCP_Tools_Static_Site_Module::save_settings( EMCP_Tools_Static_Site_Module::defaults() );
+		EMCP_Tools_Static_Site_Module::save_deny( array( 'passed' => true, 'reason' => '', 'status' => 403 ) );
+		$this->assertTrue( $GLOBALS['emcp_test']['autoload'][ EMCP_Tools_Static_Site_Module::OPTION_SETTINGS ] );
+		$this->assertTrue( $GLOBALS['emcp_test']['autoload'][ EMCP_Tools_Static_Site_Module::OPTION_DENY ] );
+	}
+
+	public function test_switching_the_module_off_clears_its_cron(): void {
+		$GLOBALS['emcp_test_cleared_crons'] = array();
+		EMCP_Tools_Static_Site_Module::on_modules_changed( array( 'redirects' ), array( 'redirects', 'static-site' ) );
+		$this->assertSame( array(), $GLOBALS['emcp_test_cleared_crons'] );
+		EMCP_Tools_Static_Site_Module::on_modules_changed( array( 'redirects', 'static-site' ), array( 'redirects' ) );
+		$this->assertSame( array( EMCP_Tools_Static_Site_Module::CRON ), $GLOBALS['emcp_test_cleared_crons'] );
+		EMCP_Tools_Static_Site_Module::on_modules_changed( 'garbage', 'garbage' );
+		$this->assertCount( 2, $GLOBALS['emcp_test_cleared_crons'] );
 	}
 }

@@ -55,7 +55,7 @@ final class EMCP_Tools_Admin_REST_Static_Site extends EMCP_Tools_Admin_REST_Cont
 		if ( $settings['serve_enabled'] && ! EMCP_Tools_Static_Site_Module::deny_verified() ) {
 			return new WP_Error( 'deny_check_required', __( 'Run the server check before serving static pages.', 'emcp-tools' ), array( 'status' => 409 ) );
 		}
-		update_option( EMCP_Tools_Static_Site_Module::OPTION_SETTINGS, $settings, false );
+		EMCP_Tools_Static_Site_Module::save_settings( $settings );
 		return rest_ensure_response( EMCP_Tools_Admin_Static_Site_Data::payload() );
 	}
 
@@ -110,7 +110,7 @@ final class EMCP_Tools_Admin_REST_Static_Site extends EMCP_Tools_Admin_REST_Cont
 		$settings = EMCP_Tools_Static_Site_Module::settings();
 		EMCP_Tools_Static_Site_Files::protect_base( EMCP_Tools_Static_Site_Module::base_dir() );
 		$result = EMCP_Tools_Static_Site_Deny_Check::run( EMCP_Tools_Static_Site_Module::base_dir(), EMCP_Tools_Static_Site_Module::base_url(), ! $settings['accept_self_signed'] );
-		update_option( EMCP_Tools_Static_Site_Module::OPTION_DENY, $result + array( 'server' => isset( $_SERVER['SERVER_SOFTWARE'] ) ? (string) $_SERVER['SERVER_SOFTWARE'] : '', 'at' => time() ), false ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		EMCP_Tools_Static_Site_Module::save_deny( $result );
 		return rest_ensure_response( $result );
 	}
 

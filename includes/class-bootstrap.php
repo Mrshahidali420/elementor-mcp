@@ -569,6 +569,7 @@ class EMCP_Tools_Bootstrap {
 		$emcp_modules->register( new EMCP_Tools_Themer_Module() );
 		$emcp_modules->register( new EMCP_Tools_Redirect_Module() );
 		$emcp_modules->register( new EMCP_Tools_Static_Site_Module() );
+		EMCP_Tools_Static_Site_Module::watch_activation();
 		$emcp_modules->register( new EMCP_Tools_Agent_Skills_Module() );
 		$emcp_modules->register( new EMCP_Tools_SVG_Support_Module() );
 		$emcp_modules->register( new EMCP_Tools_Cloud_Module() );

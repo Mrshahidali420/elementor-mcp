@@ -84,12 +84,30 @@ class EMCP_Tools_Static_Site_Module extends EMCP_Tools_Module {
 		( new EMCP_Tools_Static_Site_Server( new EMCP_Tools_Static_Site_Store(), new EMCP_Tools_Static_Site_Paths( home_url( '/' ) ), self::base_dir(), self::settings(), self::deny_verified() ) )->register();
 	}
 
+	/**
+	 * register() runs only while the module is on, so it cannot unschedule
+	 * its own cron; this watches the active-modules option instead.
+	 */
+	public static function watch_activation(): void {
+		add_action( 'update_option_' . EMCP_Tools_Module::OPTION_ACTIVE, array( __CLASS__, 'on_modules_changed' ), 10, 2 );
+	}
+
+	/**
+	 * @param mixed $old Previous active module ids.
+	 * @param mixed $now New active module ids.
+	 */
+	public static function on_modules_changed( $old, $now ): void {
+		if ( ! in_array( self::ID, is_array( $now ) ? $now : array(), true ) ) {
+			wp_clear_scheduled_hook( self::CRON );
+		}
+	}
+
 	public static function maybe_install(): void {
 		if ( (int) get_option( self::DB_OPTION, 0 ) >= self::DB_VERSION ) {
 			return;
 		}
 		if ( ( new EMCP_Tools_Static_Site_Store() )->install() ) {
-			update_option( self::DB_OPTION, self::DB_VERSION, false );
+			update_option( self::DB_OPTION, self::DB_VERSION, true );
 		}
 	}
 
@@ -162,6 +180,19 @@ class EMCP_Tools_Static_Site_Module extends EMCP_Tools_Module {
 	/** WordPress titles carry HTML entities; the screen prints text, so decode them. */
 	public static function plain_title( string $title ): string {
 		return html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	/**
+	 * The settings, the deny check and the schema version are read on every
+	 * front-end request while the module is on, so they are autoloaded.
+	 */
+	public static function save_settings( array $settings ): void {
+		update_option( self::OPTION_SETTINGS, $settings, true );
+	}
+
+	public static function save_deny( array $result ): void {
+		$software = isset( $_SERVER['SERVER_SOFTWARE'] ) ? (string) $_SERVER['SERVER_SOFTWARE'] : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- compared, never output.
+		update_option( self::OPTION_DENY, $result + array( 'server' => $software, 'at' => time() ), true );
 	}
 
 	public static function settings(): array {

@@ -146,7 +146,8 @@ function get_option( $name, $default = false ) {
 }
 
 function update_option( $name, $value, $autoload = null ): bool {
-	$GLOBALS['emcp_test']['options'][ $name ] = $value;
+	$GLOBALS['emcp_test']['options'][ $name ]  = $value;
+	$GLOBALS['emcp_test']['autoload'][ $name ] = $autoload;
 	return true;
 }
 
