@@ -65,4 +65,10 @@ final class StaticSiteServerTest extends \PHPUnit\Framework\TestCase {
 		$s->purge( array( '*' ) );
 		$this->assertDirectoryDoesNotExist( $this->base . '/gen-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/serve' );
 	}
+
+	public function test_purge_journals_nothing_while_no_generation_exists(): void {
+		unset( $this->store->state['current'] );
+		$this->server()->purge( array( 'https://example.test/about/' ) );
+		$this->assertSame( array(), $this->store->journal_pending( 10 ) );
+	}
 }

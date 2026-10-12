@@ -113,6 +113,11 @@ final class EMCP_Tools_Static_Site_Server {
 		if ( ! $urls ) {
 			return;
 		}
+		// With no generation and no run there is nothing to invalidate, and a run
+		// started later fetches after this change; journalling would only grow.
+		if ( null === $this->store->state( 'run' ) && '' === (string) ( ( (array) $this->store->state( 'current' ) )['dir'] ?? '' ) ) {
+			return;
+		}
 		foreach ( $urls as $url ) {
 			$this->store->journal_add( $url );
 		}
