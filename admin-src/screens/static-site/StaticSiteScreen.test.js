@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import apiFetch from '@wordpress/api-fetch';
 import { AppProviders } from '@emcp/ui';
 import { StaticSiteScreen } from './StaticSiteScreen';
@@ -138,5 +138,18 @@ describe( 'StaticSiteScreen', () => {
 		expect(
 			screen.getByRole( 'button', { name: 'Check the server' } )
 		).toBeInTheDocument();
+	} );
+
+	it( 'opens the settings drawer with labelled fields', async () => {
+		mount( data() );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Settings' } ) );
+		expect(
+			await screen.findByRole( 'dialog', {
+				name: 'Static Site settings',
+			} )
+		).toBeInTheDocument();
+		expect( screen.getByLabelText( 'Delivery' ) ).toHaveValue( 'zip' );
+		expect( screen.getByLabelText( 'Links' ) ).toBeInTheDocument();
+		expect( screen.getByLabelText( 'Exclude URLs' ) ).toBeInTheDocument();
 	} );
 } );

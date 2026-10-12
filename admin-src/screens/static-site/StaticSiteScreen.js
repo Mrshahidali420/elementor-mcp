@@ -766,25 +766,28 @@ export function StaticSiteScreen( { data } ) {
 				}
 			>
 				<Field label={ __( 'Delivery', 'emcp-tools' ) }>
-					<Select
-						value={ form.delivery }
-						onChange={ ( v ) =>
-							setForm( { ...form, delivery: v } )
-						}
-						options={ [
-							{
-								value: 'zip',
-								label: __( 'ZIP download', 'emcp-tools' ),
-							},
-							{
-								value: 'local',
-								label: __(
-									'Folder on this server',
-									'emcp-tools'
-								),
-							},
-						] }
-					/>
+					{ ( p ) => (
+						<Select
+							{ ...p }
+							value={ form.delivery }
+							onChange={ ( v ) =>
+								setForm( { ...form, delivery: v } )
+							}
+							options={ [
+								{
+									value: 'zip',
+									label: __( 'ZIP download', 'emcp-tools' ),
+								},
+								{
+									value: 'local',
+									label: __(
+										'Folder on this server',
+										'emcp-tools'
+									),
+								},
+							] }
+						/>
+					) }
 				</Field>
 				{ 'local' === form.delivery && (
 					<Field
@@ -794,58 +797,70 @@ export function StaticSiteScreen( { data } ) {
 							'emcp-tools'
 						) }
 					>
-						<TextInput
-							value={ form.local_folder }
-							onChange={ ( e ) =>
-								setForm( {
-									...form,
-									local_folder: e.target.value,
-								} )
-							}
-						/>
+						{ ( p ) => (
+							<TextInput
+								{ ...p }
+								value={ form.local_folder }
+								onChange={ ( e ) =>
+									setForm( {
+										...form,
+										local_folder: e.target.value,
+									} )
+								}
+							/>
+						) }
 					</Field>
 				) }
 				<Field label={ __( 'Links', 'emcp-tools' ) }>
-					<Select
-						value={ form.url_style }
-						onChange={ ( v ) =>
-							setForm( { ...form, url_style: v } )
-						}
-						options={ [
-							{
-								value: 'relative',
-								label: __(
-									'Relative (any web server)',
-									'emcp-tools'
-								),
-							},
-							{
-								value: 'offline',
-								label: __(
-									'Offline (open files from disk)',
-									'emcp-tools'
-								),
-							},
-							{
-								value: 'absolute',
-								label: __(
-									'Absolute (a new address)',
-									'emcp-tools'
-								),
-							},
-						] }
-					/>
+					{ ( p ) => (
+						<Select
+							{ ...p }
+							value={ form.url_style }
+							onChange={ ( v ) =>
+								setForm( { ...form, url_style: v } )
+							}
+							options={ [
+								{
+									value: 'relative',
+									label: __(
+										'Relative (any web server)',
+										'emcp-tools'
+									),
+								},
+								{
+									value: 'offline',
+									label: __(
+										'Offline (open files from disk)',
+										'emcp-tools'
+									),
+								},
+								{
+									value: 'absolute',
+									label: __(
+										'Absolute (a new address)',
+										'emcp-tools'
+									),
+								},
+							] }
+						/>
+					) }
 				</Field>
 				{ 'absolute' === form.url_style && (
 					<Field label={ __( 'New address', 'emcp-tools' ) }>
-						<TextInput
-							type="url"
-							value={ form.base_url }
-							onChange={ ( e ) =>
-								setForm( { ...form, base_url: e.target.value } )
-							}
-							placeholder="https://static.example.com"
-						/>
+						{ ( p ) => (
+							<TextInput
+								{ ...p }
+								type="url"
+								value={ form.base_url }
+								onChange={ ( e ) =>
+									setForm( {
+										...form,
+										base_url: e.target.value,
+									} )
+								}
+								placeholder="https://static.example.com"
+							/>
+						) }
 					</Field>
 				) }
 				<fieldset className="emcp-static__include">
@@ -874,15 +889,18 @@ export function StaticSiteScreen( { data } ) {
 					label={ __( 'Additional URLs', 'emcp-tools' ) }
 					help={ __( 'One per line.', 'emcp-tools' ) }
 				>
-					<Textarea
-						value={ form.additional_urls }
-						onChange={ ( e ) =>
-							setForm( {
-								...form,
-								additional_urls: e.target.value,
-							} )
-						}
-					/>
+					{ ( p ) => (
+						<Textarea
+							{ ...p }
+							value={ form.additional_urls }
+							onChange={ ( e ) =>
+								setForm( {
+									...form,
+									additional_urls: e.target.value,
+								} )
+							}
+						/>
+					) }
 				</Field>
 				<Field
 					label={ __( 'Exclude URLs', 'emcp-tools' ) }
@@ -891,12 +909,18 @@ export function StaticSiteScreen( { data } ) {
 						'emcp-tools'
 					) }
 				>
-					<Textarea
-						value={ form.exclude_urls }
-						onChange={ ( e ) =>
-							setForm( { ...form, exclude_urls: e.target.value } )
-						}
-					/>
+					{ ( p ) => (
+						<Textarea
+							{ ...p }
+							value={ form.exclude_urls }
+							onChange={ ( e ) =>
+								setForm( {
+									...form,
+									exclude_urls: e.target.value,
+								} )
+							}
+						/>
+					) }
 				</Field>
 				<Field
 					label={ __( 'Do not serve', 'emcp-tools' ) }
@@ -905,15 +929,18 @@ export function StaticSiteScreen( { data } ) {
 						'emcp-tools'
 					) }
 				>
-					<Textarea
-						value={ form.serve_exclude_urls }
-						onChange={ ( e ) =>
-							setForm( {
-								...form,
-								serve_exclude_urls: e.target.value,
-							} )
-						}
-					/>
+					{ ( p ) => (
+						<Textarea
+							{ ...p }
+							value={ form.serve_exclude_urls }
+							onChange={ ( e ) =>
+								setForm( {
+									...form,
+									serve_exclude_urls: e.target.value,
+								} )
+							}
+						/>
+					) }
 				</Field>
 				<Toggle
 					label={ __(
