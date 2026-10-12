@@ -229,7 +229,7 @@ export function StaticSiteScreen( { data } ) {
 		}
 		setBusy( 'cancel' );
 		try {
-			await request( `${ API }/build/cancel`, {
+			const res = await request( `${ API }/build/cancel`, {
 				method: 'POST',
 				data: {
 					generation: run.generation,
@@ -238,6 +238,16 @@ export function StaticSiteScreen( { data } ) {
 					confirm: true,
 				},
 			} );
+			if ( res && 'cancelled' === res.phase ) {
+				toast.info(
+					res.refunded
+						? __(
+								'Cancelled. The generation was returned to your allowance.',
+								'emcp-tools'
+							)
+						: __( 'Cancelled.', 'emcp-tools' )
+				);
+			}
 		} catch ( e ) {
 			toast.error( errorMessage( e ) );
 		} finally {

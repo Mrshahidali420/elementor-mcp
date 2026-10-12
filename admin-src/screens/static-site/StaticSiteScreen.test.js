@@ -209,4 +209,43 @@ describe( 'StaticSiteScreen', () => {
 		click.mockRestore();
 		jest.useRealTimers();
 	} );
+
+	it( 'says the generation was returned after a refunded cancel', async () => {
+		const run = {
+			generation: '6c1f2f7a-0000-4000-8000-000000000002',
+			mode: 'full',
+			phase: 'discover',
+			cloud: 'reserved',
+			owner: 'tab-other',
+			epoch: 0,
+			counts: { pending: 0, fetched: 0 },
+			error: '',
+			started_at: 0,
+			promoted: false,
+			lease_active: true,
+		};
+		const d = data( { run } );
+		mount( d );
+		apiFetch.mockImplementation( ( o ) =>
+			Promise.resolve(
+				o.path.includes( '/build/cancel' )
+					? {
+							phase: 'cancelled',
+							generation: run.generation,
+							error: '',
+							refunded: true,
+						}
+					: { ...d, run: null }
+			)
+		);
+		fireEvent.click( screen.getByRole( 'button', { name: 'Cancel' } ) );
+		fireEvent.click(
+			await screen.findByRole( 'button', { name: 'Cancel generation' } )
+		);
+		expect(
+			await screen.findByText(
+				'Cancelled. The generation was returned to your allowance.'
+			)
+		).toBeInTheDocument();
+	} );
 } );
