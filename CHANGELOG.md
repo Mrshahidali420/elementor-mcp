@@ -2,6 +2,10 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
+## [3.20.0] - Unreleased
+
+- New: Static Site module. Turn your site into plain HTML files, download them as a ZIP, keep them in a folder, or serve them to visitors. Generations are counted by your EMCP Cloud account: 3 free, plus a monthly allowance with an EMCP Pro licence.
+
 ## [3.19.3] - 2026-10-11
 
 > Cloud Safe Updates compatibility, progress reporting and snapshot performance improvements for hosted WordPress sites, including Hostinger and WP Launcher.

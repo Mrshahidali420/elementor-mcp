@@ -3,7 +3,7 @@ Contributors: mianshahzadraza
 Tags: elementor, mcp, ai, page-builder, automation
 Requires at least: 6.9
 Tested up to: 7.1
-Stable tag: 3.19.3
+Stable tag: 3.20.0
 Requires PHP: 8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -192,6 +192,10 @@ The admin screens ship compiled in `assets/admin/build/`. Their full source and 
 2. Connection configuration page with copy-paste configs.
 
 == Changelog ==
+
+= 3.20.0 =
+
+* New: Static Site module. Turn your site into plain HTML files, download them as a ZIP, keep them in a folder, or serve them to visitors. Generations are counted by your EMCP Cloud account: 3 free, plus a monthly allowance with an EMCP Pro licence.
 
 = 3.19.3 =
 
