@@ -115,4 +115,16 @@ final class StaticSiteStoreTest extends \PHPUnit\Framework\TestCase {
 		$this->sa->journal_add( 'https://example.test/after/' );
 		$this->assertCount( 1, $this->sa->journal_pending( 10 ) );
 	}
+
+	public function test_promotion_gives_up_quickly_on_a_held_pointer_and_restores_the_session(): void {
+		$this->a->query( 'SET SESSION innodb_lock_wait_timeout = 50' );
+		$this->b->begin_transaction();
+		$this->b->query( "SELECT value FROM wp_emcp_static_state WHERE name = 'current' FOR UPDATE" );
+		$t0 = microtime( true );
+		$this->assertFalse( $this->sa->promote( array( 'dir' => 'gen-new' ) ) );
+		$this->assertLessThan( 10, microtime( true ) - $t0 );
+		$this->b->rollback();
+		$this->assertSame( '50', (string) $this->a->query( 'SELECT @@SESSION.innodb_lock_wait_timeout' )->fetch_row()[0] );
+		$this->assertTrue( $this->sa->promote( array( 'dir' => 'gen-new' ) ) );
+	}
 }

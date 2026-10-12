@@ -236,6 +236,33 @@ final class EMCP_Tools_Static_Site_Store implements EMCP_Tools_Static_Site_Stora
 	public function promote( array $current ): bool {
 		unset( $current['_raw'] );
 		$state = $this->t( 'state' );
+		// Non-waiting in spirit (spec 4.4): a purge's share lock held inside
+		// another plugin's transaction must not hold this step for the server's
+		// 50 s default, so wait 2 s and let the next step retry.
+		// Best effort: a server that refuses the variable keeps its own wait.
+		$wait = 0;
+		try {
+			$wait = (int) $this->db->value( 'SELECT @@SESSION.innodb_lock_wait_timeout' );
+			if ( $wait > 2 ) {
+				$this->db->query( 'SET SESSION innodb_lock_wait_timeout = 2' );
+			}
+		} catch ( Throwable $e ) {
+			$wait = 0;
+		}
+		try {
+			return $this->promote_locked( $state, $current );
+		} finally {
+			if ( $wait > 2 ) {
+				try {
+					$this->db->query( 'SET SESSION innodb_lock_wait_timeout = ' . $wait );
+				} catch ( Throwable $e ) {
+					unset( $e );
+				}
+			}
+		}
+	}
+
+	private function promote_locked( string $state, array $current ): bool {
 		try {
 			$this->db->query( 'START TRANSACTION' );
 			$this->db->value( "SELECT value FROM {$state} WHERE name = 'current' FOR UPDATE" );
