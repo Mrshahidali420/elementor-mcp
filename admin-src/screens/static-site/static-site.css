@@ -1,0 +1,74 @@
+.emcp-static {
+	display: grid;
+	gap: var(--emcp-space-4, 16px);
+	max-inline-size: 72rem;
+}
+
+.emcp-static .emcp-static__big {
+	margin: 0 0 8px;
+	font-size: 1.4rem;
+	font-weight: 600;
+	color: var(--emcp-text);
+}
+
+.emcp-static .emcp-static__muted {
+	color: var(--emcp-text-2);
+}
+
+.emcp-static .emcp-static__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-block-start: 12px;
+}
+
+.emcp-static .emcp-static__phases {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 0;
+	margin: 12px 0;
+	list-style: none;
+}
+
+.emcp-static .emcp-static__phases li {
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: var(--emcp-surface-2);
+	color: var(--emcp-text-2);
+}
+
+.emcp-static .emcp-static__phases li.is-current {
+	background: var(--emcp-primary-strong);
+	color: #fff;
+}
+
+.emcp-static .emcp-static__results,
+.emcp-static .emcp-static__picked {
+	display: grid;
+	gap: 6px;
+	padding: 0;
+	margin: 8px 0;
+	list-style: none;
+}
+
+.emcp-static .emcp-static__code {
+	overflow-x: auto;
+	padding: 8px 12px;
+	border-radius: 8px;
+	background: var(--emcp-surface-2);
+	color: var(--emcp-text);
+}
+
+.emcp-static .emcp-static__facts {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 4px 16px;
+}
+
+.emcp-static .emcp-static__include {
+	display: grid;
+	gap: 8px;
+	padding: 0;
+	border: 0;
+}

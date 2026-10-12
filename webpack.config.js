@@ -31,6 +31,7 @@ module.exports = {
 		'screen-changelog': './admin-src/screens/changelog/index.js',
 		'screen-redirects': './admin-src/screens/redirects/index.js',
 		'screen-log': './admin-src/screens/log/index.js',
+		'screen-static-site': './admin-src/screens/static-site/index.js',
 	},
 	output: {
 		...defaultConfig.output,
