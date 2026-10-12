@@ -88,9 +88,19 @@ final class EMCP_Tools_Static_Site_Rewriter {
 		$fragment = false === $hash ? '' : substr( $raw, $hash );
 		$target   = ( $this->target_for )( $url );
 		if ( null === $target ) {
-			return $url . $fragment;
+			return self::safe( $url ) . $fragment;
 		}
 		return $this->link( $target, $file_path ) . $fragment;
+	}
+
+	/**
+	 * normalize() decodes HTML entities, so a decoded URL is percent-encoded
+	 * where it could end an attribute, a CSS url() or a script string, or open
+	 * a tag. Without this, `href="/x?a=&quot;onmouseover=..."` would come back
+	 * as a bare quote and add an attribute the original page never had.
+	 */
+	private static function safe( string $url ): string {
+		return strtr( $url, array( '"' => '%22', "'" => '%27', '<' => '%3C', '>' => '%3E', '`' => '%60', ' ' => '%20', '\\' => '%5C', '(' => '%28', ')' => '%29' ) );
 	}
 
 	private function link( string $target, string $file_path ): string {

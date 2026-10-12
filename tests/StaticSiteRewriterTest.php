@@ -72,6 +72,15 @@ final class StaticSiteRewriterTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame( '@font-face{src:url(../fonts/x.woff2)} .a{background:url(../images/a.jpg)} @import "https://example.test/wp-content/themes/t/missing.css";', $out );
 	}
 
+	public function test_entity_encoded_quotes_cannot_break_out_of_the_attribute(): void {
+		$html = '<a href="/x?a=&quot;onmouseover=alert(1)&quot;">X</a><div style="background:url(&quot;/y?b=&lt;s&gt;&quot;)"></div>';
+		$out  = $this->rewriter( 'relative' )->html( $html, 'https://example.test/', 'index.html' );
+		$this->assertStringNotContainsString( '"onmouseover', $out );
+		$this->assertStringNotContainsString( '<s>', $out );
+		$this->assertSame( 1, preg_match_all( '/\bhref="[^"]*"/', $out ) );
+		$this->assertStringContainsString( 'href="https://example.test/x?a=%22onmouseover=alert%281%29%22"', $out );
+	}
+
 	public function test_relative_helper(): void {
 		$c = 'EMCP_Tools_Static_Site_Rewriter';
 		$this->assertSame( 'index.html', $c::relative( '.', 'index.html' ) );
