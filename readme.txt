@@ -224,6 +224,7 @@ EMCP Tools works on your own site. It contacts the services below only in the si
 Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.
 
 * New: Static Site module. Turn your site into plain HTML files, download them as a ZIP, keep them in a folder, or serve them to visitors. Generations are counted by your EMCP Cloud account: 3 free, plus a monthly allowance with an EMCP Pro licence.
+* New: GeneratePress theme settings (palette, colors, layout, body font size) are now free; the write tool ships switched off. GenerateBlocks stays in Pro.
 * Security: Backups are kept outside the web root when possible, otherwise in an unguessable, fully protected folder. Set EMCP_BACKUP_DIR in wp-config.php to choose the folder. A weekly check warns if your web server serves it. Existing backups move automatically.
 * Security: The migration connector (1.4.0) keeps received archives and restore files private, and cleans them up.
 * Fixed: Backups made by hand or by an AI agent keep the newest 10 by default, with an optional size limit and a daily cleanup of leftovers.
@@ -237,6 +238,8 @@ Static Site generation through EMCP Cloud, backups kept out of the web root with
 * Fixed: A selective Sync with tables named without the prefix, or matching none, could push the whole database; such selections now resolve correctly or are refused.
 * Security: The database write tools accept only real column names, the OAuth screen shows bad requests as an error instead of redirecting, and changing Sandbox widgets and blocks needs unfiltered_html.
 * Fixed: A post containing the Themer Post Content block no longer crashes.
+* Improved: Visitors' page views no longer load the admin screens' server code, AI Chat, the Backup & Migrate engine or the Static Site generator.
+* Fixed: The Templates library is saved in small parts, so hosts with a small database packet limit no longer download it on every screen load; Prompts and Brand Kits are stored once.
 * Improved: Deactivation stops EMCP's maintenance tasks, uninstall cleans every site of a network and more leftovers, and each page view runs fewer queries.
 * Improved: Translation loading and template, translator notes, an External services section in this readme, licence notices for bundled code, and local Dashboard thumbnails.
 

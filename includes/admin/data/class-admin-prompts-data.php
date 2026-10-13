@@ -57,7 +57,7 @@ final class EMCP_Tools_Admin_Prompts_Data {
 
 	/**
 	 * Prompt titles for the command palette, from cached data only: the free
-	 * samples, or the synced Pro library's transient or stored copy. Never
+	 * samples, or the synced Pro library's stored copy. Never
 	 * fetches (spec 7: the palette must stay instant).
 	 */
 	public static function palette_items(): array {
@@ -70,10 +70,7 @@ final class EMCP_Tools_Admin_Prompts_Data {
 		}
 		$categories = array();
 		if ( self::pro_class() ) {
-			$bundle = get_transient( EMCP_Tools_Pro_Prompts::CACHE_KEY );
-			if ( ! is_array( $bundle ) ) {
-				$bundle = get_option( EMCP_Tools_Pro_Prompts::STORE_KEY );
-			}
+			$bundle = EMCP_Tools_Pro_Prompts::cached_bundle();
 			$categories = is_array( $bundle ) ? (array) ( $bundle['categories'] ?? array() ) : array();
 		}
 		if ( ! $categories ) {

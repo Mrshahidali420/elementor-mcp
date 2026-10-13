@@ -505,7 +505,7 @@ class EMCP_Tools_Ability_Registrar {
 		if ( class_exists( 'EMCP_Tools_Kadence_Integration' ) ) {
 			$theme_integrations[] = new EMCP_Tools_Kadence_Integration();
 		}
-		// GeneratePress + GenerateBlocks (Pro; classes only present when Pro loaded).
+		// GeneratePress theme settings (free since 3.20.0).
 		if ( class_exists( 'EMCP_Tools_GeneratePress_Integration' ) ) {
 			$theme_integrations[] = new EMCP_Tools_GeneratePress_Integration();
 		}

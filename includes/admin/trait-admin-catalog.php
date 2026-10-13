@@ -1432,7 +1432,7 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 					'emcp-tools/generatepress-read'   => array(
 						'label'            => __( 'GeneratePress Read', 'emcp-tools' ),
 						'description'      => __( 'Read GeneratePress settings (global palette, colors, layout, typography) with value + type/label/group/shape metadata.', 'emcp-tools' ),
-						'badges'           => array( 'read-only', 'pro' ),
+						'badges'           => array( 'read-only' ),
 						'operations'       => array( 'get-settings' ),
 						'available'        => self::generatepress_available(),
 						'requires'         => array( 'name' => 'GeneratePress', 'kind' => 'theme' ),
@@ -1440,7 +1440,7 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 					'emcp-tools/generatepress-write'  => array(
 						'label'            => __( 'GeneratePress Write', 'emcp-tools' ),
 						'description'      => __( 'Write GeneratePress settings; non-allowlisted keys are reported in skipped[].', 'emcp-tools' ),
-						'badges'           => array( 'pro' ),
+						'badges'           => array(),
 						'operations'       => array( 'update-settings' ),
 						'available'        => self::generatepress_available(),
 						'requires'         => array( 'name' => 'GeneratePress', 'kind' => 'theme' ),

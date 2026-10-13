@@ -91,7 +91,6 @@ includes/abilities/seo/class-seopress-integration.php
 includes/abilities/seo/class-seoframework-integration.php
 includes/abilities/seo/class-surerank-integration.php
 includes/blocks-catalog/class-generateblocks-catalog.php
-includes/abilities/class-generatepress-integration.php
 includes/abilities/class-generateblocks-integration.php
 includes/blocks-catalog/class-blocksy-blocks-catalog.php
 includes/abilities/class-blocksy-blocks-integration.php

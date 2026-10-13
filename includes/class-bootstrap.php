@@ -46,6 +46,52 @@ class EMCP_Tools_Bootstrap {
 		'emcp_tools_module_gsap_plugins',
 	);
 
+	/**
+	 * Files only admin, REST, WP-CLI and cron requests use: the admin screens' REST
+	 * controllers and data classes. A visitor's page view never loads them; see
+	 * load_backend().
+	 */
+	private const BACKEND_FILES = array(
+		'includes/admin/rest/class-admin-rest-controller.php',
+		'includes/admin/class-admin-frame.php',
+		'includes/admin/rest/class-admin-rest-frame.php',
+		'includes/admin/data/class-admin-tools-data.php',
+		'includes/admin/rest/class-admin-rest-tools.php',
+		'includes/admin/data/class-admin-builders-data.php',
+		'includes/admin/rest/class-admin-rest-builders.php',
+		'includes/admin/data/class-admin-modules-data.php',
+		'includes/admin/rest/class-admin-rest-modules.php',
+		'includes/admin/data/class-admin-connection-data.php',
+		'includes/admin/rest/class-admin-rest-connection.php',
+		'includes/admin/data/class-admin-library-list.php',
+		'includes/admin/data/class-admin-prompts-data.php',
+		'includes/admin/rest/class-admin-rest-prompts.php',
+		'includes/admin/data/class-admin-marketplace-data.php',
+		'includes/admin/rest/class-admin-rest-marketplace.php',
+		'includes/admin/rest/class-admin-rest-palette.php',
+		'includes/admin/data/class-admin-context-data.php',
+		'includes/admin/rest/class-admin-rest-context.php',
+		'includes/admin/data/class-admin-history-data.php',
+		'includes/admin/data/class-admin-dashboard-data.php',
+		'includes/admin/rest/class-admin-rest-history.php',
+		'includes/admin/data/class-admin-redirects-data.php',
+		'includes/admin/rest/class-admin-rest-redirects.php',
+		'includes/admin/data/class-admin-static-site-data.php',
+		'includes/admin/rest/class-admin-rest-static-site.php',
+		'includes/admin/data/class-admin-log-data.php',
+		'includes/admin/rest/class-admin-rest-log.php',
+		'includes/admin/rest/class-admin-rest-dashboard.php',
+		'includes/admin/class-changelog-parser.php',
+		'includes/admin/data/class-admin-changelog-data.php',
+		'includes/admin/rest/class-admin-rest-changelog.php',
+		'includes/admin/data/class-admin-sandbox-list.php',
+		'includes/admin/data/class-admin-sandbox-data.php',
+		'includes/admin/data/class-admin-sandbox-cloud-data.php',
+		'includes/admin/rest/class-admin-rest-sandbox.php',
+		'includes/admin/data/class-admin-brand-kits-data.php',
+		'includes/admin/rest/class-admin-rest-brand-kits.php',
+	);
+
 	public static function boot(): void {
 		if ( function_exists( 'wp_prime_option_caches' ) ) {
 			wp_prime_option_caches( self::PRIMED_OPTIONS );
@@ -73,6 +119,13 @@ class EMCP_Tools_Bootstrap {
 		EMCP_Tools_Sandbox_Paths::maybe_migrate();
 
 		self::wire_hooks();
+
+		// Admin screens' REST controllers and the AI Chat engine: never on a visitor's
+		// page view. The rest_api_init hook covers a REST request the URI check missed.
+		if ( self::needs_mcp_surface() ) {
+			self::load_backend();
+		}
+		add_action( 'rest_api_init', array( __CLASS__, 'load_backend' ), 0 );
 
 		// The MCP tool surface (~80 ability classes + infra) is only used to
 		// register/run abilities: an MCP REST call, the admin Tools screen, WP-CLI,
@@ -209,44 +262,6 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/class-connection-first-call.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-request-context.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-mcp-log-recorder.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-controller.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/class-admin-frame.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-frame.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-tools-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-tools.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-builders-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-builders.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-modules-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-modules.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-connection-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-connection.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-library-list.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-prompts-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-prompts.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-marketplace-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-marketplace.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-palette.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-context-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-context.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-history-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-dashboard-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-history.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-redirects-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-redirects.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-static-site-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-static-site.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-log-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-log.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-dashboard.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/class-changelog-parser.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-changelog-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-changelog.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-sandbox-list.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-sandbox-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-sandbox-cloud-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-sandbox.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/data/class-admin-brand-kits-data.php';
-		require_once EMCP_TOOLS_DIR . 'includes/admin/rest/class-admin-rest-brand-kits.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-change-blobs.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-change-recorder.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-structured-import.php';
@@ -254,9 +269,6 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/class-search-index.php';
 		require_once EMCP_TOOLS_DIR . 'includes/redirects/class-redirect-store.php';
 		require_once EMCP_TOOLS_DIR . 'includes/redirects/class-redirect-handler.php';
-		foreach ( array( 'paths', 'registry', 'files', 'extractor', 'rewriter', 'fetcher', 'db', 'store', 'locks', 'credits', 'discovery', 'packager', 'runner', 'server', 'deny-check' ) as $emcp_ss ) {
-			require_once EMCP_TOOLS_DIR . 'includes/static-site/class-static-site-' . $emcp_ss . '.php';
-		}
 		require_once EMCP_TOOLS_DIR . 'includes/class-content-mirror.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-admin-bar.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-github-updater.php';
@@ -399,6 +411,9 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/modules/class-themer-module.php';
 		require_once EMCP_TOOLS_DIR . 'includes/modules/class-redirect-module.php';
 		require_once EMCP_TOOLS_DIR . 'includes/modules/static-site/class-static-site-module.php';
+		foreach ( self::static_site_files() as $emcp_ss ) {
+			require_once EMCP_TOOLS_DIR . 'includes/static-site/class-static-site-' . $emcp_ss . '.php';
+		}
 		// Pro-tier units (SEO/a11y helpers + abilities, widget generator + builder
 		// abilities, system-kit abilities, Pro brand kits, AI Chat). These ship in
 		// the private Pro overlay (pro/) and are absent from the free build; the
@@ -487,6 +502,7 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/blocks-catalog/class-spectra-catalog.php';
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-spectra-integration.php';
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-kadence-integration.php';
+		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-generatepress-integration.php';
 		require_once EMCP_TOOLS_DIR . 'includes/blocks-catalog/class-kadence-blocks-catalog.php';
 		require_once EMCP_TOOLS_DIR . 'includes/blocks-catalog/class-kadence-pattern-library.php';
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-kadence-blocks-integration.php';
@@ -535,6 +551,69 @@ class EMCP_Tools_Bootstrap {
 		if ( class_exists( 'EMCP_Tools_Pro_Loader' ) && method_exists( 'EMCP_Tools_Pro_Loader', 'load_mcp_surface' ) ) {
 			EMCP_Tools_Pro_Loader::load_mcp_surface();
 		}
+	}
+
+	/**
+	 * The Static Site engine files this request needs, in load order: all of them for
+	 * the admin, REST, WP-CLI and cron requests that generate a site; on a visitor's
+	 * page view only what serves the generated pages, and nothing while the module
+	 * is off.
+	 *
+	 * @since 3.20.0
+	 *
+	 * @return string[] Names after class-static-site-.
+	 */
+	public static function static_site_files(): array {
+		if ( self::needs_mcp_surface() ) {
+			return array( 'paths', 'registry', 'files', 'extractor', 'rewriter', 'fetcher', 'db', 'store', 'locks', 'credits', 'discovery', 'packager', 'runner', 'server', 'deny-check' );
+		}
+		return EMCP_Tools_Static_Site_Module::is_enabled() ? array( 'paths', 'registry', 'files', 'db', 'store', 'server' ) : array();
+	}
+
+	/**
+	 * Loads and wires what only admin, REST, WP-CLI and cron requests use: the admin
+	 * screens' REST controllers and data classes, free and Pro, and the Pro AI Chat
+	 * engine. boot() runs it for those requests; a REST request the URI check missed
+	 * runs it on rest_api_init at priority 0, early enough for the routes the
+	 * controllers add at priority 10. Runs once.
+	 *
+	 * @since 3.20.0
+	 */
+	public static function load_backend(): void {
+		static $loaded = false;
+		if ( $loaded ) {
+			return;
+		}
+		$loaded = true;
+		foreach ( self::BACKEND_FILES as $rel ) {
+			require_once EMCP_TOOLS_DIR . $rel;
+		}
+		EMCP_Tools_Pro_Loader::load_backend();
+
+		// Admin frame REST (cookie-only): promo dismissal + notification read state.
+		( new EMCP_Tools_Admin_REST_Frame() )->register();
+		( new EMCP_Tools_Admin_REST_Tools() )->register();
+		( new EMCP_Tools_Admin_REST_Builders() )->register();
+		( new EMCP_Tools_Admin_REST_Modules() )->register();
+		( new EMCP_Tools_Admin_REST_Connection() )->register();
+		( new EMCP_Tools_Admin_REST_Prompts() )->register();
+		( new EMCP_Tools_Admin_REST_Brand_Kits() )->register();
+		( new EMCP_Tools_Admin_REST_Marketplace() )->register();
+		( new EMCP_Tools_Admin_REST_Palette() )->register();
+		( new EMCP_Tools_Admin_REST_Context() )->register();
+		( new EMCP_Tools_Admin_REST_History() )->register();
+		( new EMCP_Tools_Admin_REST_Log() )->register();
+		( new EMCP_Tools_Admin_REST_Dashboard() )->register();
+		( new EMCP_Tools_Admin_REST_Changelog() )->register();
+		if ( class_exists( 'EMCP_Tools_Redirect_Module' ) && EMCP_Tools_Redirect_Module::is_enabled() ) {
+			( new EMCP_Tools_Admin_REST_Redirects() )->register(); // The table exists only while the module is on.
+		}
+		if ( class_exists( 'EMCP_Tools_Static_Site_Module' ) && EMCP_Tools_Static_Site_Module::is_enabled() ) {
+			( new EMCP_Tools_Admin_REST_Static_Site() )->register();
+		}
+		( new EMCP_Tools_Admin_REST_Sandbox() )->register();
+
+		EMCP_Tools_Pro_Loader::wire_backend_hooks();
 	}
 
 	private static function wire_hooks(): void {
@@ -617,28 +696,6 @@ class EMCP_Tools_Bootstrap {
 		// self-gates on capability + is_admin_bar_showing()).
 		( new EMCP_Tools_Admin_Bar() )->init();
 
-		// Admin frame REST (cookie-only): promo dismissal + notification read state.
-		( new EMCP_Tools_Admin_REST_Frame() )->register();
-		( new EMCP_Tools_Admin_REST_Tools() )->register();
-		( new EMCP_Tools_Admin_REST_Builders() )->register();
-		( new EMCP_Tools_Admin_REST_Modules() )->register();
-		( new EMCP_Tools_Admin_REST_Connection() )->register();
-		( new EMCP_Tools_Admin_REST_Prompts() )->register();
-		( new EMCP_Tools_Admin_REST_Brand_Kits() )->register();
-		( new EMCP_Tools_Admin_REST_Marketplace() )->register();
-		( new EMCP_Tools_Admin_REST_Palette() )->register();
-		( new EMCP_Tools_Admin_REST_Context() )->register();
-		( new EMCP_Tools_Admin_REST_History() )->register();
-		( new EMCP_Tools_Admin_REST_Log() )->register();
-		( new EMCP_Tools_Admin_REST_Dashboard() )->register();
-		( new EMCP_Tools_Admin_REST_Changelog() )->register();
-		if ( class_exists( 'EMCP_Tools_Redirect_Module' ) && EMCP_Tools_Redirect_Module::is_enabled() ) {
-			( new EMCP_Tools_Admin_REST_Redirects() )->register(); // The table exists only while the module is on.
-		}
-		if ( class_exists( 'EMCP_Tools_Static_Site_Module' ) && EMCP_Tools_Static_Site_Module::is_enabled() ) {
-			( new EMCP_Tools_Admin_REST_Static_Site() )->register();
-		}
-		( new EMCP_Tools_Admin_REST_Sandbox() )->register();
 
 		// Free-tier updates from GitHub releases (self-disables on premium builds,
 		// where Freemius owns updates).

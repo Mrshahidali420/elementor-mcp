@@ -55,20 +55,6 @@ final class EMCP_Tools_Pro_Loader {
 		'includes/skills/class-custom-skills.php',
 		'includes/class-page-snapshot-pro.php',
 		'includes/admin/class-pro-brand-kits.php',
-		'includes/ai-chat/class-key-crypto.php',
-		'includes/ai-chat/class-ai-providers.php',
-		'includes/ai-chat/class-ai-chat-provider.php',
-		'includes/ai-chat/class-ai-chat-store.php',
-		'includes/ai-chat/class-ai-chat-tool-groups.php',
-		// Settings depends on Tool_Groups (it validates group ids against it).
-		'includes/ai-chat/class-ai-chat-settings.php',
-		'includes/ai-chat/class-ai-chat-prompt.php',
-		'includes/ai-chat/class-ai-chat-web-fetch.php',
-		'includes/ai-chat/class-ai-chat-image-reader.php',
-		'includes/ai-chat/class-ai-chat-usage.php',
-		'includes/ai-chat/class-ai-chat-relay.php',
-		'includes/ai-chat/class-ai-chat-suggestions.php',
-		'includes/ai-chat/class-ai-chat-controller.php',
 		// Loaded here, not lazily: Themer_Pro::init() guards on class_exists, so a
 		// missing file silently drops every Pro dynamic source instead of erroring.
 		'includes/themer/dynamic/class-themer-dynamic-pro.php',
@@ -77,19 +63,6 @@ final class EMCP_Tools_Pro_Loader {
 		// Alternate Loop Item templates render on the front end, so runtime.
 		'includes/themer/class-themer-loop-pro.php',
 		'includes/themer/class-themer-pro.php',
-		// Admin screens served over REST (3.18.0 redesign).
-		'includes/admin/data/class-admin-templates-data.php',
-		'includes/admin/rest/class-admin-rest-templates.php',
-		'includes/admin/data/class-admin-backup-data.php',
-		'includes/admin/rest/class-admin-rest-backup.php',
-		'includes/admin/data/class-admin-skills-data.php',
-		'includes/admin/data/class-admin-custom-skills-data.php',
-		'includes/admin/rest/class-admin-rest-skills.php',
-		'includes/admin/data/class-admin-memory-data.php',
-		'includes/admin/rest/class-admin-rest-memory.php',
-		'includes/admin/data/class-admin-ai-chat-data.php',
-		'includes/admin/data/class-admin-sandbox-export-data.php',
-		'includes/admin/rest/class-admin-rest-sandbox-export.php',
 		// FunnelKit History (3.19.0): runtime, because an undo from the admin History screen
 		// and the import-job cron run outside the MCP surface.
 		'includes/abilities/funnelkit/class-funnelkit-rows.php',
@@ -209,7 +182,6 @@ final class EMCP_Tools_Pro_Loader {
 		'includes/abilities/seo/class-seoframework-integration.php',
 		'includes/abilities/seo/class-surerank-integration.php',
 		'includes/blocks-catalog/class-generateblocks-catalog.php',
-		'includes/abilities/class-generatepress-integration.php',
 		'includes/abilities/class-generateblocks-integration.php',
 		'includes/blocks-catalog/class-blocksy-blocks-catalog.php',
 		'includes/abilities/class-blocksy-blocks-integration.php',
@@ -247,6 +219,42 @@ final class EMCP_Tools_Pro_Loader {
 		'includes/abilities/class-skill-abilities.php',
 		// Runtime, not admin-only: the Brand Kits REST route calls its page helper.
 		'includes/admin/class-pro-ajax.php',
+	);
+
+	/**
+	 * Pro files only admin, REST, WP-CLI and cron requests use: the AI Chat engine
+	 * (its routes are REST, its editor panels admin, its model refresh cron) and the
+	 * admin screens' REST controllers and data classes. Loaded by load_backend(),
+	 * never on a visitor's page view.
+	 */
+	private const BACKEND_FILES = array(
+		'includes/ai-chat/class-key-crypto.php',
+		'includes/ai-chat/class-ai-providers.php',
+		'includes/ai-chat/class-ai-chat-provider.php',
+		'includes/ai-chat/class-ai-chat-store.php',
+		'includes/ai-chat/class-ai-chat-tool-groups.php',
+		// Settings depends on Tool_Groups (it validates group ids against it).
+		'includes/ai-chat/class-ai-chat-settings.php',
+		'includes/ai-chat/class-ai-chat-prompt.php',
+		'includes/ai-chat/class-ai-chat-web-fetch.php',
+		'includes/ai-chat/class-ai-chat-image-reader.php',
+		'includes/ai-chat/class-ai-chat-usage.php',
+		'includes/ai-chat/class-ai-chat-relay.php',
+		'includes/ai-chat/class-ai-chat-suggestions.php',
+		'includes/ai-chat/class-ai-chat-controller.php',
+		// Admin screens served over REST (3.18.0 redesign).
+		'includes/admin/data/class-admin-templates-data.php',
+		'includes/admin/rest/class-admin-rest-templates.php',
+		'includes/admin/data/class-admin-backup-data.php',
+		'includes/admin/rest/class-admin-rest-backup.php',
+		'includes/admin/data/class-admin-skills-data.php',
+		'includes/admin/data/class-admin-custom-skills-data.php',
+		'includes/admin/rest/class-admin-rest-skills.php',
+		'includes/admin/data/class-admin-memory-data.php',
+		'includes/admin/rest/class-admin-rest-memory.php',
+		'includes/admin/data/class-admin-ai-chat-data.php',
+		'includes/admin/data/class-admin-sandbox-export-data.php',
+		'includes/admin/rest/class-admin-rest-sandbox-export.php',
 	);
 
 	/** Pro admin class files, in load order. Relative to the Pro root. */
@@ -337,6 +345,16 @@ final class EMCP_Tools_Pro_Loader {
 	/** require_once each deferred Pro MCP-surface file that exists (dual-root). */
 	public static function load_mcp_surface(): void {
 		foreach ( self::MCP_FILES as $rel ) {
+			$path = self::path( $rel );
+			if ( '' !== $path ) {
+				require_once $path;
+			}
+		}
+	}
+
+	/** require_once each Pro backend file that exists (dual-root). */
+	public static function load_backend(): void {
+		foreach ( self::BACKEND_FILES as $rel ) {
 			$path = self::path( $rel );
 			if ( '' !== $path ) {
 				require_once $path;
@@ -467,7 +485,10 @@ final class EMCP_Tools_Pro_Loader {
 		if ( class_exists( 'EMCP_Tools_Page_Snapshot_Pro' ) ) {
 			EMCP_Tools_Page_Snapshot_Pro::init();
 		}
+	}
 
+	/** Wire the Pro backend units (see BACKEND_FILES), each guarded by class_exists. */
+	public static function wire_backend_hooks(): void {
 		// Templates screen REST (3.18.0 redesign): served on REST requests.
 		if ( class_exists( 'EMCP_Tools_Admin_REST_Templates' ) ) {
 			( new EMCP_Tools_Admin_REST_Templates() )->register();
@@ -496,6 +517,15 @@ final class EMCP_Tools_Pro_Loader {
 		// Template titles in the command palette (3.18.0 redesign).
 		if ( class_exists( 'EMCP_Tools_Admin_Templates_Data' ) ) {
 			EMCP_Tools_Admin_Templates_Data::hook_palette();
+		}
+
+		// A REST request the boot-time check missed loads the backend on rest_api_init,
+		// after the modules booted on init without the AI Chat classes; wire it now.
+		if ( did_action( 'init' ) && class_exists( 'EMCP_Tools_Modules_Registry' ) ) {
+			$ai_chat = EMCP_Tools_Modules_Registry::instance()->get( 'ai-chat' );
+			if ( $ai_chat && $ai_chat->is_active() && $ai_chat->is_available() ) {
+				$ai_chat->register();
+			}
 		}
 	}
 

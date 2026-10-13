@@ -222,7 +222,7 @@ trait EMCP_Tools_Admin_Integrations_Trait {
 
 	/**
 	 * Whether the GeneratePress theme integration's tools are available
-	 * (GeneratePress is the active theme; Pro).
+	 * (GeneratePress is the active theme).
 	 *
 	 * @since 3.9.1
 	 * @return bool
