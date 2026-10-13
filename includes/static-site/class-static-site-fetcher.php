@@ -45,16 +45,24 @@ final class EMCP_Tools_Static_Site_Fetcher {
 		$this->cap       = $cap;
 	}
 
-	public function fetch( string $url, float $deadline ): array {
+	/**
+	 * @param int $max Longest single request, in seconds (the one-off home
+	 *                 page probe allows more than a crawl step does).
+	 */
+	public function fetch( string $url, float $deadline, int $max = self::MAX_TIMEOUT ): array {
 		$current = $url;
 		for ( $hop = 0; $hop <= self::MAX_HOPS; $hop++ ) {
 			$left = $deadline - microtime( true );
 			if ( $left < self::MIN_TIMEOUT ) {
 				return self::fail( 'no_time' );
 			}
-			$res = $this->request( $current, (int) min( self::MAX_TIMEOUT, floor( $left ) ) );
+			$res = $this->request( $current, (int) min( $max, floor( $left ) ) );
 			if ( is_wp_error( $res ) ) {
-				return self::fail( 'transport' );
+				$detail = (string) $res->get_error_message();
+				return self::fail( 'transport' ) + array(
+					'detail'    => $detail,
+					'timed_out' => (bool) preg_match( '/cURL error 28|timed out/i', $detail ),
+				);
 			}
 			$code    = (int) $res['code'];
 			$headers = array_change_key_case( (array) $res['headers'] );

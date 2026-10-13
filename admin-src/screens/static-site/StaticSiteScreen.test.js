@@ -57,7 +57,7 @@ describe( 'StaticSiteScreen', () => {
 			screen.getByText( /Connect this site to EMCP Cloud/ )
 		).toBeInTheDocument();
 		expect(
-			screen.getByRole( 'button', { name: 'Generate' } )
+			screen.getByRole( 'button', { name: 'Generate Static Site' } )
 		).toBeDisabled();
 	} );
 
@@ -81,7 +81,7 @@ describe( 'StaticSiteScreen', () => {
 			} )
 		);
 		expect(
-			screen.getByRole( 'button', { name: 'Generate' } )
+			screen.getByRole( 'button', { name: 'Generate Static Site' } )
 		).toBeDisabled();
 		expect(
 			screen.getByText( /no static-site generations left/i )
@@ -131,26 +131,91 @@ describe( 'StaticSiteScreen', () => {
 	it( 'keeps serving off until the server check passed', () => {
 		mount( data() );
 		expect(
-			screen.getByRole( 'switch', {
-				name: 'Serve static pages to visitors',
-			} )
+			screen.getByRole( 'checkbox', { name: 'Enable Static Serving' } )
 		).toBeDisabled();
 		expect(
 			screen.getByRole( 'button', { name: 'Check the server' } )
 		).toBeInTheDocument();
 	} );
 
-	it( 'opens the settings drawer with labelled fields', async () => {
+	it( 'shows every setting on the page with a switch for each content type', () => {
 		mount( data() );
-		fireEvent.click( screen.getByRole( 'button', { name: 'Settings' } ) );
 		expect(
-			await screen.findByRole( 'dialog', {
-				name: 'Static Site settings',
-			} )
-		).toBeInTheDocument();
-		expect( screen.getByLabelText( 'Delivery' ) ).toHaveValue( 'zip' );
-		expect( screen.getByLabelText( 'Links' ) ).toBeInTheDocument();
+			screen.getByRole( 'radio', { name: 'ZIP Download' } )
+		).toBeChecked();
+		expect(
+			screen.getByRole( 'radio', { name: 'Relative' } )
+		).toBeChecked();
+		for ( const name of [
+			'Posts',
+			'Pages',
+			'Archives',
+			'Categories',
+			'Tags',
+			'Author Pages',
+			'Custom Post Types',
+			'Theme Assets',
+			'Plugin Assets',
+			'Uploads',
+		] ) {
+			expect(
+				screen.getByRole( 'switch', { name } )
+			).toBeInTheDocument();
+		}
 		expect( screen.getByLabelText( 'Exclude URLs' ) ).toBeInTheDocument();
+		expect(
+			screen.getByRole( 'log', { name: 'Activity Log' } )
+		).toHaveTextContent( 'Waiting to start' );
+	} );
+
+	it( 'saves the batch size and content switches with Save Settings', async () => {
+		const d = data();
+		mount( d );
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Larger batches' } )
+		);
+		expect( screen.getByText( '60' ) ).toBeInTheDocument();
+		fireEvent.click( screen.getByRole( 'switch', { name: 'Uploads' } ) );
+		apiFetch.mockClear();
+		apiFetch.mockResolvedValue( d );
+		await act( async () => {
+			fireEvent.click(
+				screen.getByRole( 'button', { name: 'Save Settings' } )
+			);
+		} );
+		const call = apiFetch.mock.calls.find( ( [ o ] ) =>
+			o.path.endsWith( '/settings' )
+		);
+		expect( call[ 0 ].data.settings.batch_size ).toBe( 60 );
+		expect( call[ 0 ].data.settings.include ).toEqual( [
+			'pages',
+			'uploads',
+		] );
+	} );
+
+	it( 'shows the pipeline and the current step in the log for an open run', () => {
+		mount(
+			data( {
+				run: {
+					generation: '6c1f2f7a-0000-4000-8000-000000000004',
+					mode: 'full',
+					phase: 'fetch',
+					cloud: 'running',
+					owner: 'tab-other',
+					epoch: 0,
+					counts: { pending: 23, fetched: 240 },
+					error: '',
+					started_at: 0,
+					promoted: false,
+					lease_active: true,
+				},
+			} )
+		);
+		const steps = screen.getByRole( 'list', { name: 'Generation steps' } );
+		expect( steps ).toHaveTextContent( 'Discover' );
+		expect(
+			screen.getByRole( 'log', { name: 'Activity Log' } )
+		).toHaveTextContent( 'Fetching pages: 23 remaining of 263 total.' );
 	} );
 
 	it( 'downloads the ZIP under the server name and keeps the blob URL until the click is done', async () => {

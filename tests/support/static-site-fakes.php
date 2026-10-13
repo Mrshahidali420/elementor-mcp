@@ -64,9 +64,12 @@ final class EMCP_Test_Static_Site_Credits implements EMCP_Tools_Static_Site_Cred
 final class EMCP_Test_Static_Site_Web {
 	public $pages = array();
 	public $calls = array();
-	public function fetch( string $url, float $deadline ): array {
+	public function fetch( string $url, float $deadline, int $max = 15 ): array {
 		$this->calls[] = $url;
 		$p             = $this->pages[ $url ] ?? 'http_404';
+		if ( 'timeout' === $p ) {
+			return array( 'ok' => false, 'code' => 0, 'type' => '', 'body' => '', 'final' => '', 'error' => 'transport', 'detail' => 'cURL error 28: Operation timed out', 'timed_out' => true );
+		}
 		if ( is_string( $p ) ) {
 			return array( 'ok' => false, 'code' => 404, 'type' => '', 'body' => '', 'final' => '', 'error' => $p );
 		}

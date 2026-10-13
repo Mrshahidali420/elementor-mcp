@@ -36,6 +36,8 @@ final class EMCP_Tools_Static_Site_Runner {
 	private $settings;
 	/** @var EMCP_Tools_Static_Site_Paths */
 	private $paths;
+	/** @var array<string,string> Include type => URL path prefix of an asset folder. */
+	private $roots;
 	/** @var array<string,callable> */
 	private $fn;
 	/** @var float */
@@ -51,6 +53,7 @@ final class EMCP_Tools_Static_Site_Runner {
 		$this->settings = (array) $deps['settings'];
 		$this->budget   = (float) ( $deps['budget'] ?? self::budget() );
 		$this->paths    = new EMCP_Tools_Static_Site_Paths( $this->site );
+		$this->roots    = (array) ( $deps['asset_roots'] ?? array() );
 		$this->fn       = array(
 			'fetch'     => $deps['fetch'] ?? static fn( EMCP_Tools_Static_Site_Paths $p, array $exclude, string $key, bool $verify ) => new EMCP_Tools_Static_Site_Fetcher( $p, $exclude, $key, $verify ),
 			'discover'  => $deps['discover'] ?? array( 'EMCP_Tools_Static_Site_Discovery', 'collect' ),
@@ -62,6 +65,9 @@ final class EMCP_Tools_Static_Site_Runner {
 	}
 
 	/** Production wiring. */
+	/** Seconds the one-off home page probe waits; a busy site can be slow. */
+	const PROBE_SECONDS = 30;
+
 	public static function make(): self {
 		return new self(
 			array(
@@ -71,7 +77,8 @@ final class EMCP_Tools_Static_Site_Runner {
 				'base_dir'  => EMCP_Tools_Static_Site_Module::base_dir(),
 				'site_url'  => home_url( '/' ),
 				'site_uuid' => EMCP_Tools_Cloud::site_uuid(),
-				'settings'  => EMCP_Tools_Static_Site_Module::settings(),
+				'settings'    => EMCP_Tools_Static_Site_Module::settings(),
+				'asset_roots' => EMCP_Tools_Static_Site_Module::asset_roots(),
 			)
 		);
 	}
@@ -444,11 +451,29 @@ final class EMCP_Tools_Static_Site_Runner {
 	/** Normalise, filter and insert one discovered URL. */
 	private function enqueue( array $run, string $raw, string $from ): void {
 		$url = $this->paths->normalize( $raw, $from );
-		if ( '' === $url || ! $this->paths->is_same_origin( $url ) || $this->paths->is_excluded( $url, $this->exclusions( $run ) ) ) {
+		if ( '' === $url || ! $this->paths->is_same_origin( $url ) || $this->paths->is_excluded( $url, $this->exclusions( $run ) ) || $this->asset_left_out( $run, $url ) ) {
 			return;
 		}
 		$status = $this->paths->is_page( $url ) && $this->paths->has_query( $url ) ? 'skipped' : 'pending';
 		$this->store->add_url( $run['generation'], $url, $status );
+	}
+
+	/**
+	 * An asset in a folder switched off under Content to include is not copied;
+	 * the rewriter leaves its link on the live address.
+	 */
+	private function asset_left_out( array $run, string $url ): bool {
+		if ( $this->paths->is_page( $url ) ) {
+			return false;
+		}
+		$path    = (string) parse_url( $url, PHP_URL_PATH );
+		$include = (array) ( $run['settings']['include'] ?? array() );
+		foreach ( $this->roots as $type => $prefix ) {
+			if ( '' !== $prefix && str_starts_with( $path, $prefix ) ) {
+				return ! in_array( $type, $include, true );
+			}
+		}
+		return false;
 	}
 
 	private function exclusions( array $run ): array {
@@ -478,7 +503,7 @@ final class EMCP_Tools_Static_Site_Runner {
 
 	private function phase_fetch( array $run, float $deadline ): array {
 		$gen      = $run['generation'];
-		$fetcher  = ( $this->fn['fetch'] )( $this->paths, $this->exclusions( $run ), $run['crawl_key'], ! $run['settings']['accept_self_signed'] );
+		$fetcher  = ( $this->fn['fetch'] )( $this->paths, $this->exclusions( $run ), $run['crawl_key'], EMCP_Tools_Static_Site_Module::verify_tls( $run['settings'] ) );
 		$registry = new EMCP_Tools_Static_Site_Registry( $this->store->taken_paths( $gen ) );
 		foreach ( $this->store->rows( $gen, array( 'pending' ), (int) $run['settings']['batch_size'] ) as $row ) {
 			if ( microtime( true ) >= $deadline ) {
@@ -619,7 +644,7 @@ final class EMCP_Tools_Static_Site_Runner {
 		if ( $run['rounds'] > self::MAX_ROUNDS ) {
 			return $this->failed( $run, 'site_changing' );
 		}
-		$fetcher = ( $this->fn['fetch'] )( $this->paths, $this->exclusions( $run ), $run['crawl_key'], ! $run['settings']['accept_self_signed'] );
+		$fetcher = ( $this->fn['fetch'] )( $this->paths, $this->exclusions( $run ), $run['crawl_key'], EMCP_Tools_Static_Site_Module::verify_tls( $run['settings'] ) );
 		$changed = false;
 		$done    = array();
 		foreach ( $pending as $entry ) {
@@ -878,18 +903,26 @@ final class EMCP_Tools_Static_Site_Runner {
 	 * @return true|WP_Error
 	 */
 	public function reachable() {
-		$verify  = empty( $this->settings['accept_self_signed'] );
+		$verify  = EMCP_Tools_Static_Site_Module::verify_tls( $this->settings );
 		$fetcher = ( $this->fn['fetch'] )( new EMCP_Tools_Static_Site_Paths( $this->site ), array(), EMCP_Tools_Static_Site_Files::random_hex( 16 ), $verify );
-		$res     = $fetcher->fetch( $this->site . '/', microtime( true ) + 15 );
+		$res     = $fetcher->fetch( $this->site . '/', microtime( true ) + self::PROBE_SECONDS + 1, self::PROBE_SECONDS );
 		if ( in_array( $res['error'] ?? '', array( 'offsite_redirect', 'too_many_redirects' ), true ) ) {
 			return new WP_Error( 'site_redirects', __( 'This site\'s home page redirects to a different address (for example http to https, or to www), so every page would fail and nothing was reserved. Set the WordPress Address and Site Address in Settings, General to the address visitors use, then try again.', 'emcp-tools' ), array( 'status' => 409 ) );
 		}
 		if ( ! empty( $res['ok'] ) || 'transport' !== ( $res['error'] ?? '' ) ) {
 			return true;
 		}
+		if ( ! empty( $res['timed_out'] ) ) {
+			/* translators: %d: seconds. */
+			return new WP_Error( 'site_slow', sprintf( __( 'This site\'s home page took too long to answer (more than %d seconds), so nothing was reserved. Try again when the site is less busy.', 'emcp-tools' ), self::PROBE_SECONDS ), array( 'status' => 409 ) );
+		}
 		$message = __( 'WordPress could not load this site\'s home page from the server, so nothing was reserved. Check that the site answers at its own address from the server.', 'emcp-tools' );
-		if ( $verify && in_array( wp_get_environment_type(), array( 'local', 'development' ), true ) ) {
-			$message = __( 'WordPress could not load this site\'s home page, so nothing was reserved. Local sites often use a self-signed certificate: turn on "Accept this site\'s self-signed certificate" in Settings and try again.', 'emcp-tools' );
+		if ( $verify ) {
+			$message = __( 'WordPress could not load this site\'s home page, so nothing was reserved. If the site uses a self-signed certificate (common on local and staging sites), turn on "Accept this site\'s self-signed certificate" in Settings and try again.', 'emcp-tools' );
+		}
+		if ( ! empty( $res['detail'] ) ) {
+			/* translators: %s: the transport error, for example a cURL error. */
+			$message .= ' ' . sprintf( __( 'Reason: %s', 'emcp-tools' ), wp_strip_all_tags( (string) $res['detail'] ) );
 		}
 		return new WP_Error( 'site_unreachable', $message, array( 'status' => 409 ) );
 	}

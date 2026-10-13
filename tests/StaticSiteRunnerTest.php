@@ -350,6 +350,25 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertStringContainsString( 'href="https://example.test/"', file_get_contents( $dir . '/build/about/index.html' ) );
 	}
 
+	public function test_switched_off_asset_folders_are_not_copied_and_keep_their_live_address(): void {
+		$this->web->pages['https://example.test/'] = array( '<link rel="stylesheet" href="/wp-content/themes/t/s.css"><img src="/wp-content/uploads/a.jpg"><script src="/wp-content/plugins/p/x.js"></script>' );
+		$this->web->pages['https://example.test/wp-content/themes/t/s.css'] = array( '.a{color:red}', 'text/css' );
+		$this->web->pages['https://example.test/wp-content/uploads/a.jpg']  = array( 'JPEG', 'image/jpeg' );
+		$this->web->pages['https://example.test/wp-content/plugins/p/x.js']  = array( 'x()', 'application/javascript' );
+		$settings = array( 'delivery' => 'zip', 'local_folder' => 'site', 'url_style' => 'relative', 'base_url' => '', 'include' => array( 'pages', 'theme_assets' ), 'additional_urls' => '', 'exclude_urls' => '', 'batch_size' => 50, 'accept_self_signed' => false );
+		$roots    = array( 'theme_assets' => '/wp-content/themes/', 'plugin_assets' => '/wp-content/plugins/', 'uploads' => '/wp-content/uploads/' );
+		$r        = $this->runner( array( 'settings' => $settings, 'asset_roots' => $roots ) );
+		$view     = $r->start( 'full', array(), 'tab-a' );
+		$this->assertSame( 'done', $this->drive( $r, $view, 'tab-a' )['phase'] );
+		$this->assertContains( 'https://example.test/wp-content/themes/t/s.css', $this->web->calls );
+		$this->assertNotContains( 'https://example.test/wp-content/uploads/a.jpg', $this->web->calls );
+		$this->assertNotContains( 'https://example.test/wp-content/plugins/p/x.js', $this->web->calls );
+		$html = file_get_contents( $this->base . '/' . $this->store->state( 'current' )['dir'] . '/build/index.html' );
+		$this->assertStringContainsString( 'src="https://example.test/wp-content/uploads/a.jpg"', $html );
+		$this->assertStringContainsString( 'src="https://example.test/wp-content/plugins/p/x.js"', $html );
+		$this->assertStringNotContainsString( 'href="https://example.test/wp-content/themes/t/s.css"', $html );
+	}
+
 	public function test_non_html_responses_are_never_written_as_pages(): void {
 		$this->web->pages['https://example.test/']           = array( '<a href="/feed/">Feed</a><link rel="stylesheet" href="/odd.css">' );
 		$this->web->pages['https://example.test/feed/']      = array( '<rss><item><title>&lt;script&gt;alert(1)&lt;/script&gt;</title></item></rss>', 'application/rss+xml; charset=UTF-8' );
@@ -402,10 +421,17 @@ final class StaticSiteRunnerTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame( array(), $this->credits->calls );
 		$this->assertNull( $this->store->state( 'run' ) );
 		$this->assertSame( array(), $this->lease_store->rows );
-		$this->assertStringNotContainsString( 'self-signed', $r->get_error_message() );
 	}
 
-	public function test_unreachable_local_site_names_the_certificate_setting(): void {
+	public function test_a_slow_home_page_is_reported_as_slow_not_unreachable(): void {
+		$this->web->pages['https://example.test/'] = 'timeout';
+		$r = $this->runner( array( 'reach' => null ) )->start( 'full', array(), 'tab-a' );
+		$this->assertSame( 'site_slow', $r->get_error_code() );
+		$this->assertStringContainsString( 'too long', $r->get_error_message() );
+		$this->assertSame( array(), $this->credits->calls );
+	}
+
+	public function test_unreachable_site_names_the_certificate_setting(): void {
 		$GLOBALS['emcp_test_env_type']             = 'local';
 		$this->web->pages['https://example.test/'] = 'transport';
 		try {

@@ -84,4 +84,18 @@ final class StaticSiteFetcherTest extends \PHPUnit\Framework\TestCase {
 		$r = $this->fetcher( array( new WP_Error( 'http_request_failed', 'timeout' ) ) )->fetch( 'https://example.test/', microtime( true ) + 20 );
 		$this->assertSame( 'transport', $r['error'] );
 	}
+
+	public function test_a_transport_failure_keeps_its_reason_and_says_when_it_timed_out(): void {
+		$r = $this->fetcher( array( new WP_Error( 'http_request_failed', 'cURL error 7: Failed to connect' ) ) )->fetch( 'https://example.test/', microtime( true ) + 20 );
+		$this->assertSame( 'transport', $r['error'] );
+		$this->assertSame( 'cURL error 7: Failed to connect', $r['detail'] );
+		$this->assertFalse( $r['timed_out'] );
+		$r = $this->fetcher( array( new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 15001 milliseconds' ) ) )->fetch( 'https://example.test/', microtime( true ) + 20 );
+		$this->assertTrue( $r['timed_out'] );
+	}
+
+	public function test_a_longer_request_timeout_can_be_asked_for(): void {
+		$this->fetcher( array( self::ok( 'x' ) ) )->fetch( 'https://example.test/', microtime( true ) + 40, 30 );
+		$this->assertSame( 30, $this->calls[0][1]['timeout'] );
+	}
 }

@@ -70,6 +70,14 @@ import {
 	Folder,
 	Play,
 	Archive,
+	Pin,
+	FileText,
+	Tag,
+	Globe,
+	Settings,
+	Gauge,
+	User,
+	Minus,
 } from 'lucide-react';
 
 export const ICONS = {
@@ -140,4 +148,12 @@ export const ICONS = {
 	folder: Folder,
 	play: Play,
 	archive: Archive,
+	pin: Pin,
+	'file-text': FileText,
+	tag: Tag,
+	globe: Globe,
+	settings: Settings,
+	gauge: Gauge,
+	user: User,
+	minus: Minus,
 };

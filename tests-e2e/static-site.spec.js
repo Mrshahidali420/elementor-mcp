@@ -1,6 +1,6 @@
 /**
  * Static Site screen against a real site: it renders, axe is clean, nothing
- * scrolls sideways, and the settings drawer opens and closes. It never
+ * scrolls sideways, and the batch stepper and content switches work. It never
  * starts a generation, so no Cloud allowance is spent.
  */
 const fs = require( 'fs' );
@@ -37,7 +37,7 @@ test( 'Static Site: renders, axe is clean, no sideways scroll', async ( {
 		page.getByRole( 'heading', { name: 'Static Site', level: 1 } )
 	).toBeVisible();
 	await expect(
-		page.getByRole( 'button', { name: 'Generate', exact: true } )
+		page.getByRole( 'button', { name: 'Generate Static Site' } )
 	).toBeVisible();
 	const results = await new AxeBuilder( { page } )
 		.include( '#emcp-screen' )
@@ -51,12 +51,21 @@ test( 'Static Site: renders, axe is clean, no sideways scroll', async ( {
 	expect( width ).toBeLessThanOrEqual( 0 );
 } );
 
-test( 'Static Site: settings drawer opens and closes', async ( { page } ) => {
+test( 'Static Site: batch stepper and content switches respond', async ( {
+	page,
+} ) => {
 	await page.goto( URL );
-	await page.getByRole( 'button', { name: 'Settings', exact: true } ).click();
+	const group = page.getByRole( 'group', { name: 'Batch Size' } );
+	const before = Number( await group.locator( 'output' ).innerText() );
+	await page.getByRole( 'button', { name: 'Larger batches' } ).click();
+	await expect( group.locator( 'output' ) ).toHaveText(
+		String( Math.min( 200, before + 10 ) )
+	);
+	const uploads = page.getByRole( 'switch', { name: 'Uploads' } );
+	const was = await uploads.getAttribute( 'aria-checked' );
+	await uploads.click();
+	await expect( uploads ).not.toHaveAttribute( 'aria-checked', was );
 	await expect(
-		page.getByRole( 'dialog', { name: 'Static Site settings' } )
+		page.getByRole( 'log', { name: 'Activity Log' } )
 	).toBeVisible();
-	await page.keyboard.press( 'Escape' );
-	await expect( page.getByRole( 'dialog' ) ).toHaveCount( 0 );
 } );

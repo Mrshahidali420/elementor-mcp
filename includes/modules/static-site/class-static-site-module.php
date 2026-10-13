@@ -17,7 +17,7 @@ class EMCP_Tools_Static_Site_Module extends EMCP_Tools_Module {
 	const DB_VERSION      = 1;
 	const DB_OPTION       = 'emcp_tools_static_db_version';
 	const CRON            = 'emcp_tools_static_cleanup';
-	const INCLUDE_TYPES   = array( 'posts', 'pages', 'archives', 'categories', 'tags', 'authors', 'cpts' );
+	const INCLUDE_TYPES   = array( 'posts', 'pages', 'archives', 'categories', 'tags', 'authors', 'cpts', 'theme_assets', 'plugin_assets', 'uploads' );
 
 	public function id(): string {
 		return self::ID;
@@ -168,11 +168,37 @@ class EMCP_Tools_Static_Site_Module extends EMCP_Tools_Module {
 		$out['exclude_urls']       = self::lines( $in['exclude_urls'] ?? '' );
 		$out['serve_exclude_urls'] = self::lines( $in['serve_exclude_urls'] ?? '' );
 		$out['batch_size']         = max( 10, min( 200, (int) ( $in['batch_size'] ?? $d['batch_size'] ) ) );
-		$out['accept_self_signed'] = in_array( $env, array( 'local', 'development' ), true ) && ! empty( $in['accept_self_signed'] );
+		$out['accept_self_signed'] = ! empty( $in['accept_self_signed'] );
 		$out['serve_enabled']      = ! empty( $in['serve_enabled'] );
 		$out['serve_logged_in']    = ! empty( $in['serve_logged_in'] );
 		if ( 'absolute' === $out['url_style'] && '' === $out['base_url'] ) {
 			$out['url_style'] = 'relative';
+		}
+		return $out;
+	}
+
+	/**
+	 * Whether the crawler checks the site's certificate. On by default; an
+	 * administrator can turn it off for a self-signed certificate (local or
+	 * staging sites, which often report production).
+	 */
+	public static function verify_tls( array $settings ): bool {
+		return empty( $settings['accept_self_signed'] );
+	}
+
+	/**
+	 * URL path prefix of each asset folder an include switch covers.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function asset_roots(): array {
+		$uploads = wp_upload_dir( null, false );
+		$out     = array();
+		foreach ( array( 'theme_assets' => get_theme_root_uri(), 'plugin_assets' => plugins_url(), 'uploads' => (string) ( $uploads['baseurl'] ?? '' ) ) as $type => $url ) {
+			$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
+			if ( '' !== $path ) {
+				$out[ $type ] = rtrim( $path, '/' ) . '/';
+			}
 		}
 		return $out;
 	}

@@ -58,9 +58,9 @@ final class StaticSiteModuleTest extends \PHPUnit\Framework\TestCase {
 		$this->assertSame( 'my-site', EMCP_Tools_Static_Site_Module::sanitize( array( 'local_folder' => 'My Site' ) )['local_folder'] );
 	}
 
-	public function test_self_signed_is_only_kept_on_local_sites(): void {
-		$this->assertFalse( EMCP_Tools_Static_Site_Module::sanitize( array( 'accept_self_signed' => true ), 'production' )['accept_self_signed'] );
-		$this->assertTrue( EMCP_Tools_Static_Site_Module::sanitize( array( 'accept_self_signed' => true ), 'local' )['accept_self_signed'] );
+	public function test_certificates_are_checked_unless_an_admin_accepts_a_self_signed_one(): void {
+		$this->assertTrue( EMCP_Tools_Static_Site_Module::verify_tls( EMCP_Tools_Static_Site_Module::sanitize( array(), 'production' ) ) );
+		$this->assertFalse( EMCP_Tools_Static_Site_Module::verify_tls( EMCP_Tools_Static_Site_Module::sanitize( array( 'accept_self_signed' => true ), 'production' ) ) );
 	}
 
 	public function test_plain_title_decodes_entities_for_display(): void {

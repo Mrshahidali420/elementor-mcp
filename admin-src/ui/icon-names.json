@@ -65,5 +65,13 @@
 	"folder",
 	"play",
 	"archive",
-	"users"
+	"users",
+	"pin",
+	"file-text",
+	"tag",
+	"globe",
+	"settings",
+	"gauge",
+	"user",
+	"minus"
 ]

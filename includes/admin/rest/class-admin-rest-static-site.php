@@ -109,7 +109,7 @@ final class EMCP_Tools_Admin_REST_Static_Site extends EMCP_Tools_Admin_REST_Cont
 	public function serve_check( $request ) {
 		$settings = EMCP_Tools_Static_Site_Module::settings();
 		EMCP_Tools_Static_Site_Files::protect_base( EMCP_Tools_Static_Site_Module::base_dir() );
-		$result = EMCP_Tools_Static_Site_Deny_Check::run( EMCP_Tools_Static_Site_Module::base_dir(), EMCP_Tools_Static_Site_Module::base_url(), ! $settings['accept_self_signed'] );
+		$result = EMCP_Tools_Static_Site_Deny_Check::run( EMCP_Tools_Static_Site_Module::base_dir(), EMCP_Tools_Static_Site_Module::base_url(), EMCP_Tools_Static_Site_Module::verify_tls( $settings ) );
 		EMCP_Tools_Static_Site_Module::save_deny( $result );
 		return rest_ensure_response( $result );
 	}
