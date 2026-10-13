@@ -297,6 +297,8 @@ class EMCP_Update_Runtime {
 		foreach ( array( 'wp-content/uploads', 'wp-content/cache', 'wp-content/emcp-backups' ) as $excluded ) {
 			if ( $relative === $excluded || str_starts_with( $relative, $excluded . '/' ) ) { return false; }
 		}
+		// Backups moved to wp-content/emcp-backups-{random} in 3.20.0.
+		if ( 1 === preg_match( '#^wp-content/emcp-backups-[a-f0-9]+(/|$)#', $relative ) ) { return false; }
 		return true;
 	}
 	/** Up to 20 in-scope paths the last scan could not read or write, so the refusal can name them. */

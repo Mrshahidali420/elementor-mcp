@@ -140,7 +140,7 @@ final class SafeUpdateRuntimeTest extends TestCase {
 
 	/** Snapshots and restore deletions stay inside what updates write; other apps and user files are never touched. */
 	public function test_snapshot_scope_excludes_other_apps_uploads_and_backups(): void {
-		foreach ( array( 'index.php', 'wp-admin/a.php', 'wp-includes/b.php', 'wp-content/plugins/p/p.php', 'wp-content/themes/t/style.css', 'wp-content/languages/x.mo', 'shop/app.php', 'wp-content/uploads/2026/photo.jpg', 'wp-content/cache/page.html', 'wp-content/emcp-backups/site.emcp' ) as $file ) {
+		foreach ( array( 'index.php', 'wp-admin/a.php', 'wp-includes/b.php', 'wp-content/plugins/p/p.php', 'wp-content/themes/t/style.css', 'wp-content/languages/x.mo', 'shop/app.php', 'wp-content/uploads/2026/photo.jpg', 'wp-content/cache/page.html', 'wp-content/emcp-backups/site.emcp', 'wp-content/emcp-backups-3f9a1c/emcp_x/site.emcp' ) as $file ) {
 			if ( ! is_dir( dirname( $this->root . $file ) ) ) { mkdir( dirname( $this->root . $file ), 0700, true ); }
 			file_put_contents( $this->root . $file, 'x' );
 		}
