@@ -195,7 +195,17 @@ The admin screens ship compiled in `assets/admin/build/`. Their full source and 
 
 = 3.20.0 =
 
+Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.
+
 * New: Static Site module. Turn your site into plain HTML files, download them as a ZIP, keep them in a folder, or serve them to visitors. Generations are counted by your EMCP Cloud account: 3 free, plus a monthly allowance with an EMCP Pro licence.
+* Security: Backups are kept outside the web root when possible, otherwise in an unguessable, fully protected folder. Set EMCP_BACKUP_DIR in wp-config.php to choose the folder. A weekly check warns if your web server serves it. Existing backups move automatically.
+* Security: The migration connector (1.4.0) keeps received archives and restore files private, and cleans them up.
+* Fixed: Backups made by hand or by an AI agent keep the newest 10 by default, with an optional size limit and a daily cleanup of leftovers.
+* Fixed: The Account page no longer shows another plugin's name and version when a site manager such as ManageWP installed EMCP. Affected sites need this version installed once by hand or through the site manager.
+* Fixed: Custom Gutenberg blocks now apply their color, spacing, typography, border and shadow settings on the front end.
+* New: Custom blocks get a repeater attribute, sidebar panels with help text, the theme color palette and media thumbnails.
+* Fixed: Block attribute names that WordPress reserves are refused for new blocks; existing and imported blocks keep working.
+* Improved: Collapsible admin sidebar sections, notification cards with icons, and a History & Settings tab on Backup & Migrate.
 
 = 3.19.3 =
 
