@@ -175,7 +175,7 @@ class EMCP_Tools_Kadence_Pattern_Library {
 	public static function get_markup( string $id, bool $localize_images = false ) {
 		$entry = self::entry( $id );
 		if ( null === $entry ) {
-			return new WP_Error( 'unknown_pattern', sprintf( __( 'Unknown pattern: %s', 'emcp-tools' ), $id ), array( 'status' => 404 ) );
+			return new WP_Error( 'unknown_pattern', sprintf( /* translators: %s: pattern ID. */ __( 'Unknown pattern: %s', 'emcp-tools' ), $id ), array( 'status' => 404 ) );
 		}
 		$content = self::fetch_content( $entry );
 		if ( is_wp_error( $content ) ) {

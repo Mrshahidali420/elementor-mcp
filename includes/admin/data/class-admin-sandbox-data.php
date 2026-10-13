@@ -66,6 +66,12 @@ final class EMCP_Tools_Admin_Sandbox_Data {
 	 * @return true|WP_Error
 	 */
 	public static function can( string $type, bool $write = false ) {
+		// Widgets and blocks carry front-end JavaScript and markup, so changing them
+		// needs unfiltered_html, as PHP snippets do. WordPress withholds it from
+		// multisite site admins and from every user under DISALLOW_UNFILTERED_HTML.
+		if ( $write && in_array( $type, array( 'widgets', 'blocks' ), true ) && ! current_user_can( 'unfiltered_html' ) ) {
+			return new WP_Error( 'emcp_sandbox_unfiltered_html', __( 'Changing custom widgets and blocks requires the unfiltered_html capability.', 'emcp-tools' ), array( 'status' => 403 ) );
+		}
 		switch ( $type ) {
 			case 'widgets':
 				$ok = class_exists( 'EMCP_Tools_Widget_Store' ) && EMCP_Tools_Widget_Store::user_has_access();

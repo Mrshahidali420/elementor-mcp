@@ -798,7 +798,7 @@ class EMCP_Tools_Layout_Abilities {
 			if ( ! isset( $children_by_id[ $eid ] ) ) {
 				return new \WP_Error(
 					'invalid_element_id',
-					sprintf( __( 'Element "%s" is not a direct child of the container.', 'emcp-tools' ), $eid )
+					sprintf( /* translators: %s: element ID. */ __( 'Element "%s" is not a direct child of the container.', 'emcp-tools' ), $eid )
 				);
 			}
 		}

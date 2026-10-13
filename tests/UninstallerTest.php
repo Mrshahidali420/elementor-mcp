@@ -10,7 +10,15 @@ use PHPUnit\Framework\TestCase;
 
 final class UninstallerTest extends TestCase {
 	public function test_the_uninstaller_runs_every_step_on_its_own(): void {
-		$process = proc_open( array( PHP_BINARY, __DIR__ . '/fixtures/uninstall.php' ), array( 0 => array( 'pipe', 'r' ), 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
+		$this->run_fixture();
+	}
+
+	public function test_multisite_uninstall_cleans_every_site(): void {
+		$this->run_fixture( 'multisite' );
+	}
+
+	private function run_fixture( string $mode = '' ): void {
+		$process = proc_open( array_filter( array( PHP_BINARY, __DIR__ . '/fixtures/uninstall.php', $mode ) ), array( 0 => array( 'pipe', 'r' ), 1 => array( 'pipe', 'w' ), 2 => array( 'pipe', 'w' ) ), $pipes );
 		fclose( $pipes[0] );
 		$output = stream_get_contents( $pipes[1] );
 		$error  = stream_get_contents( $pipes[2] );

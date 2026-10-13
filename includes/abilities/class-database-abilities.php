@@ -180,6 +180,10 @@ class EMCP_Tools_Database_Abilities {
 		if ( EMCP_Tools_Database_Guard::is_protected( $table ) ) {
 			return new \WP_Error( 'protected_table', __( 'Writes to this table are not allowed.', 'emcp-tools' ) );
 		}
+		$unknown = EMCP_Tools_Database_Guard::unknown_column( $table, array_keys( $data ) );
+		if ( $unknown ) {
+			return $unknown;
+		}
 		global $wpdb;
 		$ok = $wpdb->insert( $table, $data );
 		if ( false === $ok ) {
@@ -214,6 +218,10 @@ class EMCP_Tools_Database_Abilities {
 		if ( EMCP_Tools_Database_Guard::is_protected( $table ) ) {
 			return new \WP_Error( 'protected_table', __( 'Writes to this table are not allowed.', 'emcp-tools' ) );
 		}
+		$unknown = EMCP_Tools_Database_Guard::unknown_column( $table, array_merge( array_keys( $data ), array_keys( $where ) ) );
+		if ( $unknown ) {
+			return $unknown;
+		}
 		$before = EMCP_Tools_Database_Guard::before_image( $table, $where );
 		global $wpdb;
 		$affected = $wpdb->update( $table, $data, $where );
@@ -247,6 +255,10 @@ class EMCP_Tools_Database_Abilities {
 		}
 		if ( EMCP_Tools_Database_Guard::is_protected( $table ) ) {
 			return new \WP_Error( 'protected_table', __( 'Writes to this table are not allowed.', 'emcp-tools' ) );
+		}
+		$unknown = EMCP_Tools_Database_Guard::unknown_column( $table, array_keys( $where ) );
+		if ( $unknown ) {
+			return $unknown;
 		}
 		$before = EMCP_Tools_Database_Guard::before_image( $table, $where );
 		global $wpdb;

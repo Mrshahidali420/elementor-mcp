@@ -244,7 +244,7 @@ class EMCP_Tools_Global_Classes_Write_Abilities {
 		}
 		list( $items, $order ) = $state;
 		if ( ! isset( $items[ $id ] ) ) {
-			return new \WP_Error( 'not_found', sprintf( __( 'Global class not found: %s', 'emcp-tools' ), $id ), array( 'status' => 404 ) );
+			return new \WP_Error( 'not_found', sprintf( /* translators: %s: global class ID. */ __( 'Global class not found: %s', 'emcp-tools' ), $id ), array( 'status' => 404 ) );
 		}
 
 		$item = (array) $items[ $id ];
@@ -302,7 +302,7 @@ class EMCP_Tools_Global_Classes_Write_Abilities {
 		}
 		list( $items, $order ) = $state;
 		if ( ! isset( $items[ $id ] ) ) {
-			return new \WP_Error( 'not_found', sprintf( __( 'Global class not found: %s', 'emcp-tools' ), $id ), array( 'status' => 404 ) );
+			return new \WP_Error( 'not_found', sprintf( /* translators: %s: global class ID. */ __( 'Global class not found: %s', 'emcp-tools' ), $id ), array( 'status' => 404 ) );
 		}
 		unset( $items[ $id ] );
 		$order = array_values( array_filter( $order, static function ( $oid ) use ( $id ) {
@@ -360,7 +360,7 @@ class EMCP_Tools_Global_Classes_Write_Abilities {
 		if ( ! empty( $unknown ) ) {
 			return new \WP_Error(
 				'unknown_class',
-				sprintf( __( 'Unknown global class id(s): %s', 'emcp-tools' ), implode( ', ', $unknown ) ),
+				sprintf( /* translators: %s: comma-separated global class IDs. */ __( 'Unknown global class id(s): %s', 'emcp-tools' ), implode( ', ', $unknown ) ),
 				array( 'status' => 404 )
 			);
 		}
@@ -553,7 +553,7 @@ class EMCP_Tools_Global_Classes_Write_Abilities {
 		} catch ( \Throwable $e ) {
 			return new \WP_Error(
 				'style_validation_failed',
-				sprintf( __( 'Could not load Elementor\'s style schema: %s', 'emcp-tools' ), $e->getMessage() ),
+				sprintf( /* translators: %s: error message. */ __( 'Could not load Elementor\'s style schema: %s', 'emcp-tools' ), $e->getMessage() ),
 				array( 'status' => 500 )
 			);
 		}
@@ -587,10 +587,10 @@ class EMCP_Tools_Global_Classes_Write_Abilities {
 
 		$parts = array();
 		if ( ! empty( $unknown ) ) {
-			$parts[] = sprintf( __( 'Unsupported properties: %s.', 'emcp-tools' ), implode( ', ', $unknown ) );
+			$parts[] = sprintf( /* translators: %s: comma-separated CSS property names. */ __( 'Unsupported properties: %s.', 'emcp-tools' ), implode( ', ', $unknown ) );
 		}
 		if ( ! empty( $invalid ) ) {
-			$parts[] = sprintf( __( 'Invalid property values: %s.', 'emcp-tools' ), implode( ', ', $invalid ) );
+			$parts[] = sprintf( /* translators: %s: comma-separated CSS property names. */ __( 'Invalid property values: %s.', 'emcp-tools' ), implode( ', ', $invalid ) );
 		}
 
 		return new \WP_Error(

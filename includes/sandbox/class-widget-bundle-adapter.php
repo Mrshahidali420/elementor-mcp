@@ -130,6 +130,10 @@ class EMCP_Tools_Widget_Bundle_Adapter implements EMCP_Tools_Sandbox_Artifact {
 	 * @return int|WP_Error New local widget post ID.
 	 */
 	public function apply_bundle( array $bundle ) {
+		// Imported widgets carry front-end code: only users trusted with unfiltered HTML may add them.
+		if ( ! current_user_can( 'unfiltered_html' ) ) {
+			return new WP_Error( 'emcp_sandbox_unfiltered_html', __( 'Importing custom widgets and blocks requires the unfiltered_html capability.', 'emcp-tools' ) );
+		}
 		$valid = EMCP_Tools_Sandbox_Bundle::validate( $bundle );
 		if ( is_wp_error( $valid ) ) {
 			return $valid;

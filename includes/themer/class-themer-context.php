@@ -107,10 +107,12 @@ class EMCP_Tools_Themer_Context {
 	 */
 	private static function collect_terms( WP_Post $post ): array {
 		$out = array();
+		// get_the_terms() reads the object term cache the main query already primed,
+		// where wp_get_object_terms() queried once per taxonomy on every view.
 		foreach ( get_object_taxonomies( $post->post_type ) as $tax ) {
-			$ids = wp_get_object_terms( $post->ID, $tax, array( 'fields' => 'ids' ) );
-			if ( ! is_wp_error( $ids ) && $ids ) {
-				$out[ $tax ] = array_map( 'intval', $ids );
+			$terms = get_the_terms( $post, $tax );
+			if ( is_array( $terms ) && $terms ) {
+				$out[ $tax ] = array_map( 'intval', wp_list_pluck( $terms, 'term_id' ) );
 			}
 		}
 		return $out;

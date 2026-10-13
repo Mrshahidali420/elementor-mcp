@@ -41,6 +41,9 @@ class EMCP_Tools_Migration {
 		if ( in_array( self::LEGACY_PLUGIN, $active, true ) ) {
 			return true;
 		}
+		if ( ! is_multisite() ) {
+			return false; // active_sitewide_plugins exists only on a network.
+		}
 		$network = (array) get_site_option( 'active_sitewide_plugins', array() );
 		return isset( $network[ self::LEGACY_PLUGIN ] );
 	}

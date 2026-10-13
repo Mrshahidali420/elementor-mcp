@@ -97,6 +97,7 @@ class EMCP_Tools_Block_Repair {
 			$ver,
 			true
 		);
+		wp_set_script_translations( self::SCRIPT, 'emcp-tools', EMCP_TOOLS_DIR . 'languages' );
 		wp_localize_script(
 			self::SCRIPT,
 			'emcpBlockRepair',

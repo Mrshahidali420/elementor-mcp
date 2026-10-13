@@ -139,7 +139,7 @@ class EMCP_Tools_Kadence_Blocks_Integration extends EMCP_Tools_Theme_Integration
 			return new WP_Error( 'not_found', __( 'Post not found.', 'emcp-tools' ), array( 'status' => 404 ) );
 		}
 		if ( ! EMCP_Tools_Kadence_Blocks_Catalog::is_known( $name ) ) {
-			return new WP_Error( 'unknown_block', sprintf( __( 'Unknown Kadence block: %s', 'emcp-tools' ), $name ), array( 'status' => 404 ) );
+			return new WP_Error( 'unknown_block', sprintf( /* translators: %s: block name. */ __( 'Unknown Kadence block: %s', 'emcp-tools' ), $name ), array( 'status' => 404 ) );
 		}
 		$attrs    = ( isset( $input['attributes'] ) && is_array( $input['attributes'] ) ) ? $input['attributes'] : array();
 		$position = ( isset( $input['position'] ) && is_array( $input['position'] ) ) ? $input['position'] : array( 'mode' => 'append' );

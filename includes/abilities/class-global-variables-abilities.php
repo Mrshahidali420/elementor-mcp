@@ -308,7 +308,7 @@ class EMCP_Tools_Global_Variables_Abilities {
 		foreach ( $input['operations'] as $index => $operation ) {
 			$type = is_array( $operation ) ? (string) ( $operation['type'] ?? '' ) : '';
 			if ( ! in_array( $type, $allowed, true ) ) {
-				return new \WP_Error( 'invalid_batch_operation', sprintf( __( 'Invalid variable operation at index %d.', 'emcp-tools' ), (int) $index ), array( 'status' => 400 ) );
+				return new \WP_Error( 'invalid_batch_operation', sprintf( /* translators: %d: position of the operation in the batch. */ __( 'Invalid variable operation at index %d.', 'emcp-tools' ), (int) $index ), array( 'status' => 400 ) );
 			}
 			$has_delete = $has_delete || 'delete' === $type;
 		}
@@ -388,16 +388,16 @@ class EMCP_Tools_Global_Variables_Abilities {
 		foreach ( array( 'type', 'label', 'value' ) as $field ) {
 			if ( ! array_key_exists( $field, $input ) ) {
 				if ( in_array( $field, $required_fields, true ) ) {
-					return new \WP_Error( 'missing_' . $field, sprintf( __( 'The "%s" field is required.', 'emcp-tools' ), $field ), array( 'status' => 400 ) );
+					return new \WP_Error( 'missing_' . $field, sprintf( /* translators: %s: field name. */ __( 'The "%s" field is required.', 'emcp-tools' ), $field ), array( 'status' => 400 ) );
 				}
 				continue;
 			}
 			$value = trim( sanitize_text_field( (string) $input[ $field ] ) );
 			if ( '' === $value ) {
-				return new \WP_Error( 'invalid_' . $field, sprintf( __( 'The "%s" field cannot be empty.', 'emcp-tools' ), $field ), array( 'status' => 400 ) );
+				return new \WP_Error( 'invalid_' . $field, sprintf( /* translators: %s: field name. */ __( 'The "%s" field cannot be empty.', 'emcp-tools' ), $field ), array( 'status' => 400 ) );
 			}
 			if ( 'type' === $field && ! in_array( $value, $this->variable_types(), true ) ) {
-				return new \WP_Error( 'invalid_type', sprintf( __( 'Unsupported Elementor variable type: %s', 'emcp-tools' ), $value ), array( 'status' => 400 ) );
+				return new \WP_Error( 'invalid_type', sprintf( /* translators: %s: variable type. */ __( 'Unsupported Elementor variable type: %s', 'emcp-tools' ), $value ), array( 'status' => 400 ) );
 			}
 			if ( 'label' === $field && ( strlen( $value ) > 50 || false !== strpos( $value, ' ' ) ) ) {
 				return new \WP_Error( 'invalid_label', __( 'Variable labels must be 50 characters or fewer and cannot contain spaces.', 'emcp-tools' ), array( 'status' => 400 ) );
@@ -414,7 +414,7 @@ class EMCP_Tools_Global_Variables_Abilities {
 	private function required_string( array $input, string $field ) {
 		$value = trim( sanitize_text_field( (string) ( $input[ $field ] ?? '' ) ) );
 		if ( '' === $value ) {
-			return new \WP_Error( 'missing_' . $field, sprintf( __( 'The "%s" field is required.', 'emcp-tools' ), $field ), array( 'status' => 400 ) );
+			return new \WP_Error( 'missing_' . $field, sprintf( /* translators: %s: field name. */ __( 'The "%s" field is required.', 'emcp-tools' ), $field ), array( 'status' => 400 ) );
 		}
 		if ( 'id' === $field && strlen( $value ) > 64 ) {
 			return new \WP_Error( 'invalid_id', __( 'Variable ids cannot exceed 64 characters.', 'emcp-tools' ), array( 'status' => 400 ) );
@@ -436,7 +436,7 @@ class EMCP_Tools_Global_Variables_Abilities {
 
 			if ( 'create' === $type ) {
 				if ( empty( $operation['variable'] ) || ! is_array( $operation['variable'] ) ) {
-					return new \WP_Error( 'invalid_batch_operation', sprintf( __( 'Create operation at index %d requires a variable object.', 'emcp-tools' ), (int) $index ), array( 'status' => 400 ) );
+					return new \WP_Error( 'invalid_batch_operation', sprintf( /* translators: %d: position of the operation in the batch. */ __( 'Create operation at index %d requires a variable object.', 'emcp-tools' ), (int) $index ), array( 'status' => 400 ) );
 				}
 				$variable = $this->variable_data( $operation['variable'], array( 'type', 'label', 'value' ) );
 				if ( is_wp_error( $variable ) ) {
@@ -458,7 +458,7 @@ class EMCP_Tools_Global_Variables_Abilities {
 					return $id;
 				}
 				if ( empty( $operation['variable'] ) || ! is_array( $operation['variable'] ) ) {
-					return new \WP_Error( 'invalid_batch_operation', sprintf( __( 'Update operation at index %d requires a variable object.', 'emcp-tools' ), (int) $index ), array( 'status' => 400 ) );
+					return new \WP_Error( 'invalid_batch_operation', sprintf( /* translators: %d: position of the operation in the batch. */ __( 'Update operation at index %d requires a variable object.', 'emcp-tools' ), (int) $index ), array( 'status' => 400 ) );
 				}
 				$variable = $this->variable_data( $operation['variable'], array() );
 				if ( is_wp_error( $variable ) ) {

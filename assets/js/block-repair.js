@@ -86,13 +86,18 @@
 	}
 
 	function notify() {
-		var __ = wp.i18n.__;
+		var _n = wp.i18n._n;
 		var sprintf = wp.i18n.sprintf;
 		wp.data.dispatch( 'core/notices' ).createNotice(
 			'success',
 			sprintf(
 				/* translators: %d: number of repaired blocks */
-				__( 'EMCP repaired %d AI-inserted block(s) with the editor’s own recovery. Click Update to keep the repaired version.', 'emcp-tools' ),
+				_n(
+					'EMCP repaired %d AI-inserted block with the editor’s own recovery. Click Update to keep the repaired version.',
+					'EMCP repaired %d AI-inserted blocks with the editor’s own recovery. Click Update to keep the repaired version.',
+					totalRepaired,
+					'emcp-tools'
+				),
 				totalRepaired
 			),
 			{ id: 'emcp-block-repair', isDismissible: true }

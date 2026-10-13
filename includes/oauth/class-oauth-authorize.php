@@ -140,10 +140,19 @@ class EMCP_Tools_OAuth_Authorize {
 			);
 		}
 
-		$state = (string) ( $params['state'] ?? '' );
 		$valid = self::validate_params( $params, $client );
 		if ( is_wp_error( $valid ) ) {
-			self::redirect_error( $redirect_uri, $valid->get_error_code(), $state );
+			// Show the error here rather than redirecting: clients register themselves,
+			// so redirecting before anyone has logged in would let any registered URI
+			// use this site as an open redirector.
+			self::error_page(
+				__( 'This connection request is incomplete or uses options this site does not support.', 'emcp-tools' ),
+				sprintf(
+					/* translators: %s: OAuth error code, such as invalid_request. */
+					__( 'Error: %s. Remove the connector in your AI app and add it again.', 'emcp-tools' ),
+					$valid->get_error_code()
+				)
+			);
 		}
 
 		if ( ! is_user_logged_in() ) {

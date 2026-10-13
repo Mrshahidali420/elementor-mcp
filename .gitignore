@@ -13,6 +13,7 @@
 /vendor/composer/*
 !/vendor/composer/InstalledVersions.php
 !/vendor/composer/installed.json
+!/vendor/composer/LICENSE
 !/vendor/composer/jetpack_autoload_classmap.php
 !/vendor/composer/jetpack_autoload_filemap.php
 !/vendor/composer/jetpack_autoload_psr4.php

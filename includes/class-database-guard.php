@@ -298,6 +298,30 @@ class EMCP_Tools_Database_Guard {
 	}
 
 	/**
+	 * Refuse any key that is not a column of the table. wpdb puts field names into
+	 * its SQL inside backticks without escaping them, so an unchecked key (one
+	 * containing a backtick, say) would let a caller write arbitrary SQL.
+	 *
+	 * @param string $table A validated real table name.
+	 * @param array  $keys  Column names from data and where.
+	 * @return \WP_Error|null
+	 */
+	public static function unknown_column( string $table, array $keys ) {
+		global $wpdb;
+		$columns = array();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery -- $table is a validated real table name.
+		foreach ( (array) $wpdb->get_results( 'DESCRIBE `' . str_replace( '`', '', $table ) . '`', ARRAY_A ) as $row ) {
+			$columns[ strtolower( (string) ( $row['Field'] ?? '' ) ) ] = true;
+		}
+		foreach ( $keys as $key ) {
+			if ( ! isset( $columns[ strtolower( (string) $key ) ] ) ) {
+				return new \WP_Error( 'unknown_column', sprintf( /* translators: %s: column name */ __( 'Unknown column: %s. Read describe-table for the real column names.', 'emcp-tools' ), sanitize_text_field( (string) $key ) ) );
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Capture the rows an equality-AND WHERE will affect, before update/delete.
 	 *
 	 * @param string $table A validated real table name.
@@ -312,11 +336,17 @@ class EMCP_Tools_Database_Guard {
 		$cond = array();
 		$vals = array();
 		foreach ( $where as $col => $val ) {
-			$cond[] = '`' . str_replace( '`', '', (string) $col ) . '` = %s';
+			$name = '`' . str_replace( '`', '', (string) $col ) . '`';
+			// wpdb matches a null value with IS NULL, so the snapshot must too.
+			if ( null === $val ) {
+				$cond[] = $name . ' IS NULL';
+				continue;
+			}
+			$cond[] = $name . ' = %s';
 			$vals[] = $val;
 		}
 		$sql  = "SELECT * FROM `" . str_replace( '`', '', $table ) . "` WHERE " . implode( ' AND ', $cond ) . ' LIMIT ' . (int) self::BEFORE_IMAGE_CAP;
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $vals ), ARRAY_A );
+		$rows = $wpdb->get_results( $vals ? $wpdb->prepare( $sql, $vals ) : $sql, ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
 

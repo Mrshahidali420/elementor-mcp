@@ -13,6 +13,7 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       emcp-tools
  * Domain Path:       /languages
+ * Update URI:        https://github.com/msrbuilds/elementor-mcp
  *
  * This file is the bootstrap ONLY: plugin header, the legacy-rename guard,
  * constants, the Freemius SDK helper, the uninstall hook, and the entry point
@@ -321,6 +322,11 @@ require_once EMCP_TOOLS_DIR . 'includes/class-uninstaller.php';
 if ( function_exists( 'emcp_tools_fs' ) ) {
 	emcp_tools_fs()->add_action( 'after_uninstall', array( 'EMCP_Tools_Uninstaller', 'run' ) );
 }
+
+// Deactivation stops EMCP's recurring maintenance events; their owners schedule
+// them again on the next load after reactivation.
+require_once EMCP_TOOLS_DIR . 'includes/class-deactivator.php';
+register_deactivation_hook( __FILE__, array( 'EMCP_Tools_Deactivator', 'run' ) );
 
 /**
  * Canonical "Upgrade to Pro" URL — the external pricing page on the EMCP Tools

@@ -324,7 +324,8 @@ final class EMCP_Tools_Admin_Dashboard_Data {
 				'title'   => $v[0],
 				'channel' => $v[1],
 				'url'     => 'https://www.youtube.com/watch?v=' . rawurlencode( $v[2] ),
-				'thumb'   => 'https://i.ytimg.com/vi/' . rawurlencode( $v[2] ) . '/hqdefault.jpg',
+				// Shipped with the plugin so the Dashboard makes no request to YouTube.
+				'thumb'   => EMCP_TOOLS_URL . 'assets/img/videos/' . rawurlencode( $v[2] ) . '.jpg',
 			);
 		}
 		return $out;

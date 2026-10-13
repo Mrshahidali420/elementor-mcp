@@ -728,7 +728,7 @@ class EMCP_Tools_Admin {
 				$deps = array_values( array_unique( array_merge( $deps, array( 'emcp-admin-ui' ) ) ) );
 			}
 			wp_register_script( $handle, EMCP_TOOLS_URL . 'assets/admin/build/' . $file . '.js', $deps, $version, true );
-			wp_set_script_translations( $handle, 'emcp-tools' );
+			wp_set_script_translations( $handle, 'emcp-tools', EMCP_TOOLS_DIR . 'languages' );
 			if ( file_exists( $build . $file . '.css' ) ) {
 				wp_enqueue_style( $handle, EMCP_TOOLS_URL . 'assets/admin/build/' . $file . '.css', 'shell' === $file ? array( 'emcp-admin-ui' ) : array(), $version );
 			}

@@ -243,7 +243,7 @@ final class EMCP_Tools_Admin_Screens {
 		self::run_enqueue_hook( $id );
 		wp_register_script( $handle, $paths['url'], $deps, $version, true );
 		wp_add_inline_script( $handle, self::boot_script( self::boot_payload( $id, $common, $context ) ), 'before' );
-		wp_set_script_translations( $handle, 'emcp-tools' );
+		wp_set_script_translations( $handle, 'emcp-tools', EMCP_TOOLS_DIR . 'languages' );
 		wp_enqueue_script( $handle );
 		if ( '' !== $paths['css'] && is_readable( $paths['css'] ) ) {
 			wp_enqueue_style( $handle, $paths['css_url'], array( 'emcp-admin-ui' ), $version );

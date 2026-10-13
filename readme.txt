@@ -1,4 +1,4 @@
-=== MCP Tools for Elementor ===
+=== EMCP Tools ===
 Contributors: mianshahzadraza
 Tags: elementor, mcp, ai, page-builder, automation
 Requires at least: 6.9
@@ -12,7 +12,7 @@ Extends the WordPress MCP Adapter to expose Elementor data, widgets, and page de
 
 == Description ==
 
-MCP Tools for Elementor bridges the gap between AI tools and Elementor page design. It extends the official WordPress MCP Adapter to expose a focused set of MCP (Model Context Protocol) tools that let AI agents like Claude, Cursor, and other MCP-compatible clients create and manipulate Elementor page designs programmatically.
+EMCP Tools bridges the gap between AI tools and Elementor page design. It extends the official WordPress MCP Adapter to expose a focused set of MCP (Model Context Protocol) tools that let AI agents like Claude, Cursor, and other MCP-compatible clients create and manipulate Elementor page designs programmatically.
 
 As of v3.0.0 the 62 per-widget tools were folded into a catalog-backed model, so the active tool surface is much smaller while every widget stays reachable, and the toolset takes its first steps beyond Elementor with general WordPress content management, curated site-settings control, full plugin and theme management, media attachment management, safe user management, filesystem access, and database inspection over MCP. The v3.0.0 beyond-Elementor surface adds 8 WordPress Content tools + 3 surfaced WordPress core abilities + 2 WordPress Settings tools + 13 Plugins & Themes tools + 3 Media Library tools + 4 Users tools + 1 Performance Analyzer tool + 1 Security & Malware Scanner tool + 6 Filesystem tools + 6 Database tools. Tool counts scale with your environment (registered counts, verified on Elementor 4.1.4): around 107 tools on a free Elementor install, ~121 with the Elementor 4.0+ atomic elements, ~117 with Elementor Pro, and ~131 with Pro + Elementor 4.0+ (WooCommerce adds no new tools; its widgets are reached through add-pro-widget). When Advanced Custom Fields (free or PRO) is active, 2 ACF tools register on top of any of those counts: `acf-read` and `acf-write`, two dispatchers that expose 18 ACF operations (9 read, 9 write; the Custom Post Type and taxonomy operations need ACF 6.1+). Each dispatcher is a single toggle under Tools → Plugins → ACF, listing the operations it covers; `acf-read` is on by default and `acf-write` ships off. About 39 other tools ship disabled-by-default (SEO & Accessibility, Widget Builder, PHP Snippets, the 9 Plugins & Themes write tools, delete-media, the 2 Users write tools, the 3 Filesystem write tools, and the 3 Database write tools), so the typical active surface is smaller.
 
@@ -158,7 +158,7 @@ Yes. The free/core widgets are added via `add-free-widget` and work with free El
 
 = Can I disable specific tools? =
 
-Yes. Open the **EMCP Tools** top-level admin menu and use the **Tools** screen to toggle individual tools on or off. If your MCP client has a strict tool cap (e.g. Antigravity's 100-tool limit), flip on **Low-tools mode** at the top of that screen to expose only a curated set of essentials.
+Yes. Open the **EMCP Tools** top-level admin menu and use the **Tools** screen to toggle individual tools on or off. If your MCP client has a strict tool cap (e.g. Antigravity's 100-tool limit), turn on **Compact tool mode** on that screen, which exposes three dispatcher tools instead of every tool while keeping all of them reachable.
 
 = Does this plugin require the WordPress MCP Adapter? =
 
@@ -186,6 +186,32 @@ On shared LiteSpeed hosting (e.g. Hostinger) this is usually the host caching/bu
 
 The admin screens ship compiled in `assets/admin/build/`. Their full source and build setup are in the public repository at https://github.com/msrbuilds/elementor-mcp (the `admin-src` and `admin-build` folders), and the tag `v<version>` matches each release. The Pro plugin includes its own source in the download.
 
+== External services ==
+
+EMCP Tools works on your own site. It contacts the services below only in the situations described. Services marked (Pro) are used by the Pro edition only.
+
+**EMCP Cloud (emcptools.com).** Used only after an administrator connects the site on Connection > Cloud. Connecting sends the site address and a generated site ID and stores OAuth tokens. While connected, the plugin sends what each feature you use needs: Marketplace installs and Sandbox artifact sync send or receive widget, block and snippet bundles; settings sync sends the tool and module settings on its allowlist; Safe Updates sends the update offers, job progress and receipts of a job you approved in Cloud; Static Site sends a generation request ID and the site identity so a generation can be counted. Leaving "Let EMCP Cloud manage this site through the gateway" switched on also uploads a revocable credential for the site's own MCP server. The WP-CLI command `wp emcp cloud onboard` sends the site ID, address and enrolment grant. [Terms of service](https://emcptools.com/terms-of-service), [privacy policy](https://emcptools.com/privacy).
+
+**EMCP notifications (emcptools.com).** EMCP admin screens fetch the product announcements shown in the notifications drawer, at most every six hours. The request carries no site data beyond what any web request sends (IP address and WordPress user agent). Same terms and privacy policy as above.
+
+**EMCP Pro libraries and usage counts (emcptools.com, Pro).** The Prompts, Templates, Brand Kits and Skills screens download their libraries with the licence key, licence ID, site address and plugin version, so the server can confirm the licence. Applying a template or copying a prompt sends a usage event (the item, the licence key and ID, and the site address) that feeds the popularity counts shown on those screens. Same terms and privacy policy as above.
+
+**Freemius (freemius.com).** Licensing, account and Pro updates, and the optional opt-in shown on activation. What is sent is described on the opt-in screen. [Terms](https://freemius.com/terms/), [privacy policy](https://freemius.com/privacy/).
+
+**GitHub (api.github.com).** The free edition checks the latest release of msrbuilds/elementor-mcp so WordPress can offer updates, at most every six hours, and downloads the release ZIP when you update. No site data is sent. [Terms](https://docs.github.com/site-policy/github-terms/github-terms-of-service), [privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
+
+**WordPress.org (api.wordpress.org, downloads.wordpress.org).** The plugin and theme tools search, install and update from the WordPress.org directory, and the security scan compares core files with the official checksums. Plugin, theme and WordPress version numbers are sent. [Privacy policy](https://wordpress.org/about/privacy/).
+
+**Stock photos: Unsplash, Pexels, Pixabay.** Only when an AI agent searches for images and you have added that service's API key on the Connection screen. The key and the search terms are sent. Unsplash [terms](https://unsplash.com/terms) and [privacy](https://unsplash.com/privacy); Pexels [terms](https://www.pexels.com/terms-of-service/) and [privacy](https://www.pexels.com/privacy-policy/); Pixabay [terms](https://pixabay.com/service/terms/) and [privacy](https://pixabay.com/service/privacy/).
+
+**Image and page URLs you or your agent supply.** Sideloading an image downloads it from the given address. In Pro, the AI Chat web fetch tool downloads the page the model asks for.
+
+**AI model providers (Pro AI Chat).** Only with your own API key, when you chat: Anthropic, OpenAI, OpenRouter, Google Gemini, DeepSeek, Moonshot, Z.ai, OpenCode, or a local Ollama or LM Studio server. Your messages, the page context and tool results are sent to the provider you pick, under that provider's terms and privacy policy. The list of available models is refreshed weekly with the same key.
+
+**Live data widgets (Pro).** Custom widgets that use a live data source call the service you configure, with the key you add under Connection > Live data providers: OpenWeather, Google Places, Yelp Fusion, or a JSON address you enter. Each request sends the key and the location, place or business you set.
+
+**Your own sites (Pro).** Backup & Migrate pushes signed archives to a destination site you paired, and the Oxygen design library reads from an Oxygen site you choose.
+
 == Screenshots ==
 
 1. Tools management page with category-grouped toggles.
@@ -208,6 +234,11 @@ Static Site generation through EMCP Cloud, backups kept out of the web root with
 * Fixed: Bricks: interactions, conditions and global classes are accepted, custom CSS works on Bricks 2.4, options switched off with false stay off, and imported images keep their source.
 * New: Bricks context reports the root font size and Bricks' own abilities; the Bricks skill gains an HTML import guide.
 * Improved: Collapsible admin sidebar sections, notification cards with icons, and a History & Settings tab on Backup & Migrate.
+* Fixed: A selective Sync with tables named without the prefix, or matching none, could push the whole database; such selections now resolve correctly or are refused.
+* Security: The database write tools accept only real column names, the OAuth screen shows bad requests as an error instead of redirecting, and changing Sandbox widgets and blocks needs unfiltered_html.
+* Fixed: A post containing the Themer Post Content block no longer crashes.
+* Improved: Deactivation stops EMCP's maintenance tasks, uninstall cleans every site of a network and more leftovers, and each page view runs fewer queries.
+* Improved: Translation loading and template, translator notes, an External services section in this readme, licence notices for bundled code, and local Dashboard thumbnails.
 
 = 3.19.3 =
 

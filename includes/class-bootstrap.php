@@ -27,7 +27,30 @@ class EMCP_Tools_Bootstrap {
 	 *
 	 * @since 2.1.0 (since 1.0.0 as emcp_tools_init)
 	 */
+	/**
+	 * Options read on every request but stored without autoload (schema
+	 * versions) or usually absent (module settings left at their defaults).
+	 * Priming them answers all of them with one query instead of one each.
+	 */
+	const PRIMED_OPTIONS = array(
+		'emcp_tools_search_index_db_version',
+		'emcp_tools_changelog_db_version',
+		'emcp_tools_oauth_db_version',
+		'emcp_tools_redirects_db_version',
+		'emcp_tools_static_db_version',
+		'emcp_tools_migrate_db_version',
+		'emcp_tools_static_deny_verified',
+		'emcp_tools_module_image_optimization_webp_serve',
+		'emcp_tools_module_image_optimization_max_dimension',
+		'emcp_tools_module_gsap_contexts',
+		'emcp_tools_module_gsap_plugins',
+	);
+
 	public static function boot(): void {
+		if ( function_exists( 'wp_prime_option_caches' ) ) {
+			wp_prime_option_caches( self::PRIMED_OPTIONS );
+		}
+
 		// Fallback legacy-data migration (the primary snapshot happens in the
 		// legacy guard while the old plugin is still present). Idempotent.
 		EMCP_Tools_Migration::migrate();
@@ -242,6 +265,15 @@ class EMCP_Tools_Bootstrap {
 		// Editor-side auto-repair for AI-inserted static-save blocks (Kadence).
 		require_once EMCP_TOOLS_DIR . 'includes/class-block-repair.php';
 		add_action( 'init', array( 'EMCP_Tools_Nav_Menu_Shortcode', 'register' ) );
+		// Translations shipped in the plugin's own languages/ folder (the plugin is not
+		// on translate.wordpress.org, so just-in-time loading would never find them).
+		add_action(
+			'init',
+			static function () {
+				load_plugin_textdomain( 'emcp-tools', false, dirname( EMCP_TOOLS_BASENAME ) . '/languages' );
+			},
+			0
+		);
 		// ACF tools (field values + field group discovery/authoring; writes off by default).
 		// Meta Box tools (field values + field group discovery; writes off by default).
 

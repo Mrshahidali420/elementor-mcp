@@ -310,7 +310,6 @@ class EMCP_Tools_Themer_Blocks {
 			array(
 				'category' => self::CATEGORY,
 				'blocks'   => self::editor_payload(),
-				'menus'    => self::menu_choices(),
 			)
 		);
 
@@ -485,7 +484,9 @@ class EMCP_Tools_Themer_Blocks {
 		}
 		wp_add_inline_script(
 			self::SCRIPT,
-			'window.emcpThemerBlocks = window.emcpThemerBlocks || {}; window.emcpThemerBlocks.loopOptions = ' . wp_json_encode( self::loop_options( $saved ), JSON_HEX_TAG | JSON_HEX_AMP ) . ';',
+			'window.emcpThemerBlocks = window.emcpThemerBlocks || {}; window.emcpThemerBlocks.loopOptions = ' . wp_json_encode( self::loop_options( $saved ), JSON_HEX_TAG | JSON_HEX_AMP ) . ';'
+				// The menu picker's choices, read here so wp_get_nav_menus() runs only in the editor.
+				. ' window.emcpThemerBlocks.menus = ' . wp_json_encode( self::menu_choices(), JSON_HEX_TAG | JSON_HEX_AMP ) . ';',
 			'before'
 		);
 	}

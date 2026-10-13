@@ -283,7 +283,7 @@ class EMCP_Tools_Themer_Dynamic {
 					break;
 				case 'comments':
 					$count = (int) get_comments_number( $id );
-					$out[] = '<li class="emcp-dyn-meta-comments"><a href="' . esc_url( (string) get_comments_link( $id ) ) . '">' . esc_html( sprintf( _n( '%s comment', '%s comments', $count, 'emcp-tools' ), number_format_i18n( $count ) ) ) . '</a></li>';
+					$out[] = '<li class="emcp-dyn-meta-comments"><a href="' . esc_url( (string) get_comments_link( $id ) ) . '">' . esc_html( sprintf( /* translators: %s: number of comments. */ _n( '%s comment', '%s comments', $count, 'emcp-tools' ), number_format_i18n( $count ) ) ) . '</a></li>';
 					break;
 			}
 		}
@@ -408,6 +408,28 @@ class EMCP_Tools_Themer_Dynamic {
 		if ( function_exists( 'post_password_required' ) && post_password_required( $id ) ) {
 			return '<div class="emcp-dyn emcp-dyn-post-content entry-content">' . get_the_password_form( $id ) . '</div>';
 		}
+		// A post whose own content holds the Post Content block would render itself
+		// again and again; render each post once per nesting (other posts, such as
+		// loop cards, still render).
+		static $rendering = array();
+		if ( isset( $rendering[ $id ] ) ) {
+			return '';
+		}
+		$rendering[ $id ] = true;
+		try {
+			return self::render_post_content( (int) $id );
+		} finally {
+			unset( $rendering[ $id ] );
+		}
+	}
+
+	/**
+	 * Render a post's content for post_content(), which guards against re-entry.
+	 *
+	 * @param int $id Post ID.
+	 * @return string
+	 */
+	private static function render_post_content( int $id ): string {
 		// Bricks stores the queried page in postmeta, leaving post_content empty.
 		// Render it natively when a Themer body contains the Post Content block.
 		if ( 'bricks' === get_template() && 'bricks' === get_post_meta( $id, '_bricks_editor_mode', true )
