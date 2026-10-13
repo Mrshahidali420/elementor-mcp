@@ -205,6 +205,8 @@ Static Site generation through EMCP Cloud, backups kept out of the web root with
 * Fixed: Custom Gutenberg blocks now apply their color, spacing, typography, border and shadow settings on the front end.
 * New: Custom blocks get a repeater attribute, sidebar panels with help text, the theme color palette and media thumbnails.
 * Fixed: Block attribute names that WordPress reserves are refused for new blocks; existing and imported blocks keep working.
+* Fixed: Bricks: interactions, conditions and global classes are accepted, custom CSS works on Bricks 2.4, options switched off with false stay off, and imported images keep their source.
+* New: Bricks context reports the root font size and Bricks' own abilities; the Bricks skill gains an HTML import guide.
 * Improved: Collapsible admin sidebar sections, notification cards with icons, and a History & Settings tab on Backup & Migrate.
 
 = 3.19.3 =
