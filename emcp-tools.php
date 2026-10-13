@@ -175,6 +175,74 @@ define( 'EMCP_TOOLS_BASENAME', plugin_basename( __FILE__ ) );
 require_once EMCP_TOOLS_DIR . 'includes/class-mcp-adapter-bootstrap.php';
 EMCP_Tools_Adapter_Bootstrap::preload_bundled_namespace();
 
+if ( ! function_exists( 'emcp_tools_fs_guard_main_file' ) ) {
+	/**
+	 * Keep Freemius pointed at EMCP's own main file.
+	 *
+	 * Freemius detects a plugin's main file once, from the call stack, and
+	 * caches it. When another plugin loads EMCP during that first run (for
+	 * example ManageWP Worker installing or activating it), Freemius can cache
+	 * that plugin's file instead. The Account page then shows the other
+	 * plugin's name and version, update checks compare against that version,
+	 * and Freemius registers EMCP's deactivation hook on the wrong file, so
+	 * reinstalling EMCP never clears the cache.
+	 *
+	 * Runs before fs_dynamic_init() and only touches EMCP's own entries
+	 * (product 30577, slug emcp-tools), and only when they are wrong.
+	 *
+	 * @param string $main_file Absolute path to this file.
+	 */
+	function emcp_tools_fs_guard_main_file( $main_file ) {
+		if ( ! class_exists( 'FS_Options' ) || ! class_exists( 'FS_Storage' ) || ! defined( 'WP_FS__ACCOUNTS_OPTION_NAME' ) || ! function_exists( 'fs_normalize_path' ) ) {
+			return;
+		}
+		$main_file   = fs_normalize_path( $main_file );
+		$plugins_dir = fs_normalize_path( trailingslashit( WP_PLUGIN_DIR ) );
+		if ( 0 !== strpos( $main_file, $plugins_dir ) ) {
+			// Symlinked or unusual layout: leave detection to Freemius.
+			return;
+		}
+		// Freemius caches the path relative to the plugins directory.
+		$relative = substr( $main_file, strlen( $plugins_dir ) );
+		// Cached paths may be relative to the plugins directory or absolute.
+		$is_ours = static function ( $path ) use ( $main_file, $plugins_dir ) {
+			$path = fs_normalize_path( (string) $path );
+			if ( '' !== $path && 0 !== strpos( $path, $plugins_dir ) ) {
+				$path = $plugins_dir . ltrim( $path, '/' );
+			}
+			return $path === $main_file;
+		};
+
+		// 1. The module map Freemius consults first. Seeding it also prevents a
+		// wrong detection on a fresh install made by another plugin.
+		$accounts = FS_Options::instance( WP_FS__ACCOUNTS_OPTION_NAME, true );
+		$map      = $accounts->get_option( 'id_slug_type_path_map', array() );
+		if ( ! is_array( $map ) ) {
+			$map = array();
+		}
+		$entry = isset( $map[30577] ) && is_array( $map[30577] ) ? $map[30577] : array();
+		if ( empty( $entry['path'] ) || ! $is_ours( $entry['path'] ) || empty( $entry['slug'] ) || 'emcp-tools' !== $entry['slug'] ) {
+			$map[30577] = array(
+				'slug' => 'emcp-tools',
+				'type' => 'plugin',
+				'path' => $relative,
+			);
+			$accounts->set_option( 'id_slug_type_path_map', $map, true );
+		}
+
+		// 2. The per-module cache, which Freemius trusts while the cached file
+		// exists. plugin_main_file is network-level, so this holds on multisite.
+		$storage = FS_Storage::instance( 'plugin', 'emcp-tools' );
+		$cached  = $storage->get( 'plugin_main_file' );
+		if ( is_object( $cached ) && ! empty( $cached->path ) && ! $is_ours( $cached->path ) ) {
+			$fixed       = clone $cached;
+			$fixed->path = $relative;
+			unset( $fixed->prev_path );
+			$storage->store( 'plugin_main_file', $fixed );
+		}
+	}
+}
+
 if ( ! function_exists( 'emcp_tools_fs' ) ) {
 	// Create a helper function for easy SDK access.
 	function emcp_tools_fs() {
@@ -188,6 +256,7 @@ if ( ! function_exists( 'emcp_tools_fs' ) ) {
 
 			// Include Freemius SDK.
 			require_once dirname( __FILE__ ) . '/includes/vendors/fremius/start.php';
+			emcp_tools_fs_guard_main_file( __FILE__ );
 
 			// The premium build ships a `.emcp-pro` marker file at the plugin
 			// root; the free build does not. Freemius needs is_premium=true on
