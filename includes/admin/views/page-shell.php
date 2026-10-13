@@ -23,6 +23,10 @@ $emcp_collapsed = EMCP_Tools_Admin_Frame::sidebar_collapsed(
 	(int) $emcp_user->ID,
 	isset( $_COOKIE[ EMCP_Tools_Admin_Frame::SIDEBAR_COOKIE ] ) ? sanitize_key( wp_unslash( $_COOKIE[ EMCP_Tools_Admin_Frame::SIDEBAR_COOKIE ] ) ) : null
 );
+$emcp_closed    = EMCP_Tools_Admin_Frame::closed_groups(
+	(int) $emcp_user->ID,
+	isset( $_COOKIE[ EMCP_Tools_Admin_Frame::GROUPS_COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ EMCP_Tools_Admin_Frame::GROUPS_COOKIE ] ) ) : null
+);
 ?>
 <div class="wrap emcp-app eui-frame<?php echo $emcp_collapsed ? ' is-collapsed' : ''; ?>">
 	<?php
@@ -30,7 +34,7 @@ $emcp_collapsed = EMCP_Tools_Admin_Frame::sidebar_collapsed(
 	echo EMCP_Tools_Admin_Frame::promo( EMCP_Tools_Admin_Frame::announcements( ! $emcp_premium ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>
 	<div class="eui-frame__layout">
-		<?php echo EMCP_Tools_Admin_Frame::sidebar( $emcp_nav, $active_tab, EMCP_TOOLS_VERSION, $emcp_premium ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+		<?php echo EMCP_Tools_Admin_Frame::sidebar( $emcp_nav, $active_tab, EMCP_TOOLS_VERSION, $emcp_premium, $emcp_closed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 		<div class="eui-frame__main">
 			<?php echo EMCP_Tools_Admin_Frame::topbar( $emcp_current['crumbs'], $emcp_status, (int) $emcp_unread, EMCP_Tools_Admin_Frame::user_summary( $emcp_user ), $emcp_nav->topbar_links(), $emcp_collapsed, EMCP_Tools_Admin_Frame::cloud_status( class_exists( 'EMCP_Tools_Cloud_Module' ) && class_exists( 'EMCP_Tools_Cloud' ) && EMCP_Tools_Cloud_Module::is_enabled(), class_exists( 'EMCP_Tools_Cloud' ) ? EMCP_Tools_Cloud::status() : array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 			<div class="eui-frame__content" id="emcp-main">

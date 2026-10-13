@@ -205,6 +205,11 @@ html:has(.eui-frame) {
 	padding-inline: 8px;
 }
 
+/* The rail has no section headers to click, so every section shows. */
+.eui-frame.is-collapsed .eui-frame-nav__list.is-closed {
+	display: block;
+}
+
 .eui-frame.is-collapsed :is(.eui-frame-brand__text, .eui-frame-search__label, .eui-frame-search__kbd, .eui-frame-nav__group, .eui-frame-nav__label, .eui-frame-nav__count, .eui-frame-nav__badge) {
 	position: absolute !important;
 	inline-size: 1px;
@@ -212,6 +217,12 @@ html:has(.eui-frame) {
 	overflow: hidden;
 	clip-path: inset(50%);
 	white-space: nowrap;
+}
+
+/* A header in the rail would be an invisible tab stop; the lists keep their
+   names through aria-labelledby, which reads hidden elements. */
+.eui-frame.is-collapsed .eui-frame-nav__group {
+	display: none;
 }
 
 .eui-frame.is-collapsed :is(.eui-frame-nav__item, .eui-frame-search) {
@@ -313,14 +324,52 @@ html:has(.eui-frame) {
 }
 
 .eui-frame-nav__group {
-	margin-block: 14px 4px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	inline-size: 100%;
+	min-block-size: 32px;
+	margin-block: 8px 0;
 	margin-inline: 0;
+	padding-block: 4px;
 	padding-inline: 10px;
+	border: 0;
+	border-radius: var(--emcp-r-xs);
+	background: none;
 	color: var(--emcp-muted);
 	font-size: 11px;
 	font-weight: 600;
 	letter-spacing: 0.07em;
+	text-align: start;
 	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.eui-frame-nav__group:hover {
+	color: var(--emcp-text-2);
+	background: var(--emcp-surface-2);
+}
+
+.eui-frame-nav__group:focus-visible {
+	outline: 2px solid var(--emcp-primary);
+	outline-offset: 1px;
+}
+
+.eui-frame-nav__group .eui-icon {
+	flex: none;
+	transition: transform var(--emcp-dur-fast) var(--emcp-ease);
+}
+
+.eui-frame-nav__group[aria-expanded="false"] .eui-icon {
+	transform: rotate(-90deg);
+}
+
+[dir="rtl"] .eui-frame-nav__group[aria-expanded="false"] .eui-icon {
+	transform: rotate(90deg);
+}
+
+.eui-frame-nav__list.is-closed {
+	display: none;
 }
 
 .eui-frame-nav__list {
@@ -651,6 +700,11 @@ a.eui-frame-user:focus-visible {
 
 @media (max-width: 1200px) {
 
+	.eui-frame-nav__list.is-closed {
+		display: block;
+	}
+
+
 	/* The rail is forced here, so the toggle has nothing to do. */
 	.eui-frame-collapse {
 		display: none;
@@ -679,6 +733,10 @@ a.eui-frame-user:focus-visible {
 		overflow: hidden;
 		clip-path: inset(50%);
 		white-space: nowrap;
+	}
+
+	.eui-frame-nav__group {
+		display: none;
 	}
 
 	.eui-frame-nav__item,

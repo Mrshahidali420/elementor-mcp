@@ -212,7 +212,14 @@ test( 'palette opens with Ctrl+K and navigates', async ( { page } ) => {
 
 test( 'frame stays usable when the shell bundle is blocked', async ( {
 	page,
+	context,
+	baseURL,
 } ) => {
+	// Without the shell nothing can open a closed section, so start with
+	// every section open whatever this user saved.
+	await context.addCookies( [
+		{ name: 'emcp_tools_nav_closed', value: '-', url: baseURL },
+	] );
 	await page.route( /assets\/admin\/build\/shell\.js/, ( route ) =>
 		route.abort()
 	);
@@ -241,4 +248,47 @@ test( 'frame keeps its layout with an admin notice', async ( { page } ) => {
 			document.documentElement.clientWidth
 	);
 	expect( overflow ).toBe( false );
+} );
+
+test( 'sidebar sections open and close, and the choice survives a reload', async ( {
+	page,
+}, testInfo ) => {
+	test.skip(
+		testInfo.project.name !== '1440',
+		'Section headers are hidden in the narrow icon rail.'
+	);
+	await page.goto( '/wp-admin/admin.php?page=emcp-tools' );
+	// Static Site lives under Build (it only shows while its module is on).
+	await expect(
+		page.locator( '#eui-frame-list-safety' ).getByRole( 'link', {
+			name: 'Static Site',
+		} )
+	).toHaveCount( 0 );
+	const header = page.getByRole( 'button', { name: 'Library' } );
+	const list = page.locator( '#eui-frame-list-library' );
+	try {
+		if ( 'false' === ( await header.getAttribute( 'aria-expanded' ) ) ) {
+			await header.click();
+		}
+		await expect( list ).toBeVisible();
+		await header.click();
+		await expect( header ).toHaveAttribute( 'aria-expanded', 'false' );
+		await expect( list ).toBeHidden();
+		await page.reload();
+		await expect(
+			page.getByRole( 'button', { name: 'Library' } )
+		).toHaveAttribute( 'aria-expanded', 'false' );
+		await expect( page.locator( '#eui-frame-list-library' ) ).toBeHidden();
+		const results = await new AxeBuilder( { page } )
+			.include( '#emcp-frame-sidebar' )
+			.analyze();
+		expect( results.violations ).toEqual( [] );
+	} finally {
+		const again = page.getByRole( 'button', { name: 'Library' } );
+		if ( 'false' === ( await again.getAttribute( 'aria-expanded' ) ) ) {
+			await again.click();
+			await expect( again ).toHaveAttribute( 'aria-expanded', 'true' );
+			await page.waitForTimeout( 500 );
+		}
+	}
 } );

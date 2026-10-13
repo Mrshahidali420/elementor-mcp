@@ -131,13 +131,13 @@ final class EMCP_Tools_Admin_Nav {
 			'skills'        => array( 'label' => __( 'Skills', 'emcp-tools' ), 'group' => 'build', 'icon' => 'sparkles' ),
 			'memory'        => array( 'label' => __( 'Memory', 'emcp-tools' ), 'group' => 'build', 'icon' => 'brain' ),
 			'widgets'       => array( 'label' => __( 'Sandbox', 'emcp-tools' ), 'group' => 'build', 'icon' => 'code' ),
+			'static-site'   => array( 'label' => __( 'Static Site', 'emcp-tools' ), 'group' => 'build', 'icon' => 'archive' ),
 			'templates'     => array( 'label' => __( 'Templates', 'emcp-tools' ), 'group' => 'library', 'icon' => 'layout-grid' ),
 			'brand-kits'    => array( 'label' => __( 'Brand Kits', 'emcp-tools' ), 'group' => 'library', 'icon' => 'palette' ),
 			'marketplace'   => array( 'label' => __( 'Marketplace', 'emcp-tools' ), 'group' => 'library', 'icon' => 'store' ),
 			'history'       => array( 'label' => __( 'History', 'emcp-tools' ), 'group' => 'safety', 'icon' => 'history' ),
 			'migrate'       => array( 'label' => __( 'Backup & Migrate', 'emcp-tools' ), 'group' => 'safety', 'icon' => 'database-backup' ),
 			'redirects'     => array( 'label' => __( 'Redirects', 'emcp-tools' ), 'group' => 'safety', 'icon' => 'shuffle' ),
-			'static-site'   => array( 'label' => __( 'Static Site', 'emcp-tools' ), 'group' => 'safety', 'icon' => 'archive' ),
 			'mcp-log'       => array( 'label' => __( 'MCP Log', 'emcp-tools' ), 'group' => 'safety', 'icon' => 'scroll-text' ),
 		);
 	}

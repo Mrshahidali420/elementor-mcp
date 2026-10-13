@@ -33,6 +33,20 @@ final class EMCP_Tools_Admin_REST_Frame extends EMCP_Tools_Admin_REST_Controller
 			)
 		);
 		$this->route(
+			'frame/groups',
+			array(
+				'methods'  => 'POST',
+				'callback' => array( $this, 'save_groups' ),
+				'args'     => array(
+					'closed' => array(
+						'type'     => 'array',
+						'required' => true,
+						'items'    => array( 'type' => 'string' ),
+					),
+				),
+			)
+		);
+		$this->route(
 			'frame/sidebar',
 			array(
 				'methods'  => 'POST',
@@ -45,6 +59,22 @@ final class EMCP_Tools_Admin_REST_Frame extends EMCP_Tools_Admin_REST_Controller
 				),
 			)
 		);
+	}
+
+	/**
+	 * Remember which sidebar sections the current user keeps closed.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public function save_groups( $request ) {
+		$closed = EMCP_Tools_Admin_Frame::known_groups( (array) $request->get_param( 'closed' ) );
+		if ( $closed ) {
+			update_user_meta( get_current_user_id(), EMCP_Tools_Admin_Frame::GROUPS_META, $closed );
+		} else {
+			delete_user_meta( get_current_user_id(), EMCP_Tools_Admin_Frame::GROUPS_META );
+		}
+		return new WP_REST_Response( array( 'closed' => $closed ) );
 	}
 
 	/**

@@ -6,6 +6,7 @@ import { AppProviders } from '@emcp/ui';
 import { ShellApp } from './ShellApp';
 import { initPromo } from './promo';
 import { initSidebarToggle } from './sidebar';
+import { initNavGroups } from './nav-groups';
 import './shell.css';
 import './palette.css';
 
@@ -22,6 +23,7 @@ if ( promo ) {
 const frame = document.querySelector( '.eui-frame' );
 if ( frame ) {
 	initSidebarToggle( frame );
+	initNavGroups( frame );
 }
 
 const root = document.getElementById( 'emcp-shell-root' );

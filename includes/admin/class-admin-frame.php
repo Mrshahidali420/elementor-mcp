@@ -23,6 +23,36 @@ final class EMCP_Tools_Admin_Frame {
 	/** Cookie the toggle writes, so the next page renders the new state at once. */
 	const SIDEBAR_COOKIE = 'emcp_tools_sidebar';
 
+	/** User meta: the sidebar sections (group ids) the user keeps closed. */
+	const GROUPS_META = 'emcp_tools_nav_closed';
+
+	/** Cookie the section headers write: closed group ids joined by commas, or '-' for none. */
+	const GROUPS_COOKIE = 'emcp_tools_nav_closed';
+
+	/**
+	 * The sidebar sections a user keeps closed, known group ids only. The
+	 * cookie wins for the same reason as the sidebar toggle's.
+	 *
+	 * @param int         $user_id User.
+	 * @param string|null $cookie  The GROUPS_COOKIE value, if sent.
+	 * @return string[]
+	 */
+	public static function closed_groups( int $user_id, ?string $cookie = null ): array {
+		$list = null !== $cookie
+			? explode( ',', $cookie )
+			: ( $user_id > 0 ? (array) get_user_meta( $user_id, self::GROUPS_META, true ) : array() );
+		return self::known_groups( $list );
+	}
+
+	/**
+	 * @param array $ids Candidate group ids.
+	 * @return string[] Known ids, in order, without duplicates.
+	 */
+	public static function known_groups( array $ids ): array {
+		$known = array_keys( EMCP_Tools_Admin_Nav::group_labels() );
+		return array_values( array_unique( array_filter( array_map( 'strval', $ids ), static fn( $id ) => in_array( $id, $known, true ) ) ) );
+	}
+
 	/**
 	 * Whether a user collapsed the sidebar. The toggle's cookie wins: the REST
 	 * save can land after the next page is already rendering. User meta
@@ -157,8 +187,9 @@ final class EMCP_Tools_Admin_Frame {
 	 * @param string               $active_tab Current tab id.
 	 * @param string               $version    Plugin version.
 	 * @param bool                 $premium    Whether Pro is licensed.
+	 * @param string[]             $closed     Group ids the user keeps closed.
 	 */
-	public static function sidebar( EMCP_Tools_Admin_Nav $nav, string $active_tab, string $version, bool $premium ): string {
+	public static function sidebar( EMCP_Tools_Admin_Nav $nav, string $active_tab, string $version, bool $premium, array $closed = array() ): string {
 		// A div, not <aside>: the frame sits inside core's role="main" (#wpbody-content),
 		// where a nested complementary landmark is an accessibility error.
 		$html  = '<div class="eui-frame__sidebar" id="emcp-frame-sidebar">';
@@ -170,8 +201,14 @@ final class EMCP_Tools_Admin_Frame {
 			. '<kbd class="eui-frame-search__kbd">' . esc_html__( 'Ctrl K', 'emcp-tools' ) . '</kbd></button>';
 		$html .= '<nav class="eui-frame-nav" aria-label="' . esc_attr__( 'Main', 'emcp-tools' ) . '">';
 		foreach ( $nav->groups() as $group ) {
-			$gid   = 'eui-frame-group-' . $group['id'];
-			$html .= '<p class="eui-frame-nav__group" id="' . esc_attr( $gid ) . '">' . esc_html( $group['label'] ) . '</p><ul class="eui-frame-nav__list" aria-labelledby="' . esc_attr( $gid ) . '">';
+			$gid  = 'eui-frame-group-' . $group['id'];
+			$lid  = 'eui-frame-list-' . $group['id'];
+			$here = in_array( $active_tab, array_column( $group['items'], 'id' ), true );
+			// The section holding the current page always renders open.
+			$open  = $here || ! in_array( $group['id'], $closed, true );
+			$html .= '<button type="button" class="eui-frame-nav__group" id="' . esc_attr( $gid ) . '" aria-expanded="' . ( $open ? 'true' : 'false' ) . '" aria-controls="' . esc_attr( $lid ) . '" data-emcp-nav-group="' . esc_attr( $group['id'] ) . '">'
+				. '<span class="eui-frame-nav__group-label">' . esc_html( $group['label'] ) . '</span>' . EMCP_Tools_Admin_Icons::svg( 'chevron-down', 14 ) . '</button>'
+				. '<ul class="eui-frame-nav__list' . ( $open ? '' : ' is-closed' ) . '" id="' . esc_attr( $lid ) . '" aria-labelledby="' . esc_attr( $gid ) . '">';
 			foreach ( $group['items'] as $item ) {
 				$html .= '<li>' . self::nav_link( $item, $item['id'] === $active_tab ) . '</li>';
 			}
