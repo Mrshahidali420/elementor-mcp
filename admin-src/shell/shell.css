@@ -225,6 +225,13 @@ html:has(.eui-frame) {
 	display: none;
 }
 
+/* The rail hides the headers, so the divider moves onto the lists. */
+.eui-frame.is-collapsed .eui-frame-nav__list ~ .eui-frame-nav__list {
+	margin-block-start: 8px;
+	padding-block-start: 8px;
+	border-block-start: 1px solid var(--emcp-divider);
+}
+
 .eui-frame.is-collapsed :is(.eui-frame-nav__item, .eui-frame-search) {
 	justify-content: center;
 	padding-inline: 0;
@@ -366,6 +373,21 @@ html:has(.eui-frame) {
 
 [dir="rtl"] .eui-frame-nav__group[aria-expanded="false"] .eui-icon {
 	transform: rotate(90deg);
+}
+
+/* A divider above every section after the first, so the groups read apart. */
+.eui-frame-nav__list + .eui-frame-nav__group {
+	position: relative;
+	margin-block-start: 17px;
+}
+
+.eui-frame-nav__list + .eui-frame-nav__group::before {
+	content: "";
+	position: absolute;
+	inset-block-start: -9px;
+	inset-inline: 0;
+	border-block-start: 1px solid var(--emcp-divider);
+	pointer-events: none;
 }
 
 .eui-frame-nav__list.is-closed {
@@ -737,6 +759,12 @@ a.eui-frame-user:focus-visible {
 
 	.eui-frame-nav__group {
 		display: none;
+	}
+
+	.eui-frame-nav__list ~ .eui-frame-nav__list {
+		margin-block-start: 8px;
+		padding-block-start: 8px;
+		border-block-start: 1px solid var(--emcp-divider);
 	}
 
 	.eui-frame-nav__item,
