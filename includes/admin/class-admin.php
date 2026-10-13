@@ -643,6 +643,9 @@ class EMCP_Tools_Admin {
 					'body'   => (string) ( $n['body'] ?? '' ),
 					'url'    => (string) ( $n['url'] ?? '' ),
 					'cta'    => (string) ( $n['cta'] ?? '' ),
+					'icon'   => (string) ( $n['icon'] ?? '' ),
+					'level'  => (string) ( $n['level'] ?? 'info' ),
+					'date'   => (string) ( $n['created_at'] ?? '' ),
 					'unread' => ! EMCP_Tools_Notifications::is_read( $user, $id ),
 				);
 			}

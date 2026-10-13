@@ -78,6 +78,7 @@ import {
 	Gauge,
 	User,
 	Minus,
+	Megaphone,
 } from 'lucide-react';
 
 export const ICONS = {
@@ -156,4 +157,5 @@ export const ICONS = {
 	gauge: Gauge,
 	user: User,
 	minus: Minus,
+	megaphone: Megaphone,
 };
