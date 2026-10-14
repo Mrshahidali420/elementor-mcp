@@ -138,12 +138,21 @@ class EMCP_Tools_Kadence_Integration extends EMCP_Tools_Theme_Integration {
 			return new WP_Error( 'missing_values', __( 'Provide a "values" object of Kadence setting key => value pairs.', 'emcp-tools' ), array( 'status' => 400 ) );
 		}
 
-		$updated = array();
-		$skipped = array();
+		$updated  = array();
+		$skipped  = array();
+		$rejected = array();
 		foreach ( $values as $key => $value ) {
 			$key = (string) $key;
 			if ( ! isset( self::ALLOWLIST[ $key ] ) ) {
 				$skipped[] = $key;
+				continue;
+			}
+			// Kadence prints these into its inline CSS and set_theme_mod() runs none
+			// of its Customizer sanitizers, so each value is checked here.
+			if ( 'string' === self::ALLOWLIST[ $key ]['type'] ? ! self::is_choice( $value ) : ! ( is_array( $value ) && self::is_safe_structure( $value ) ) ) {
+				$rejected[ $key ] = 'string' === self::ALLOWLIST[ $key ]['type']
+					? __( 'Use one of the listed values, e.g. "normal".', 'emcp-tools' )
+					: __( 'Use the object shape from get-settings. Values must be palette slugs, hex, rgb(), rgba(), var(--name), plain http(s) URLs, numbers or plain text without ; { } < > \\ @ : or parentheses.', 'emcp-tools' );
 				continue;
 			}
 			set_theme_mod( $key, $value );
@@ -151,8 +160,9 @@ class EMCP_Tools_Kadence_Integration extends EMCP_Tools_Theme_Integration {
 		}
 
 		return array(
-			'updated' => $updated,
-			'skipped' => $skipped,
+			'updated'  => $updated,
+			'skipped'  => $skipped,
+			'rejected' => $rejected,
 		);
 	}
 }

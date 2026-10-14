@@ -267,4 +267,122 @@ abstract class EMCP_Tools_Theme_Integration {
 	protected function write_description(): string {
 		return $this->label() . ', write operations. Call with no operation to list them.';
 	}
+
+	// ---------------------------------------------------------------------
+	// Value checks for theme settings writes. Themes print these settings
+	// into inline CSS, and a settings write here bypasses the theme's own
+	// Customizer sanitizers, so no value may close a declaration, a rule or
+	// the style element, or load anything.
+	// ---------------------------------------------------------------------
+
+	/**
+	 * A CSS color as themes store it, normalized, or null: "" (reset), #rgb,
+	 * #rrggbb, rgb(r,g,b), rgba(r,g,b,a) or var(--name).
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string|null
+	 */
+	protected static function css_color( $value ): ?string {
+		if ( ! is_string( $value ) ) {
+			return null;
+		}
+		$color = trim( $value );
+		if ( '' === $color || preg_match( '/^#(?:[0-9a-f]{3}){1,2}$/Di', $color ) || preg_match( '/^var\(--[a-z0-9-]{1,60}\)$/Di', $color ) ) {
+			return $color;
+		}
+		$flat = str_replace( ' ', '', $color );
+		if ( preg_match( '/^rgb\((\d{1,3}),(\d{1,3}),(\d{1,3})\)$/D', $flat, $m ) && max( (int) $m[1], (int) $m[2], (int) $m[3] ) <= 255 ) {
+			return $flat;
+		}
+		if ( preg_match( '/^rgba\((\d{1,3}),(\d{1,3}),(\d{1,3}),(0|1|0?\.\d+|1\.0+)\)$/D', $flat, $m ) && max( (int) $m[1], (int) $m[2], (int) $m[3] ) <= 255 ) {
+			return $flat;
+		}
+		return null;
+	}
+
+	/**
+	 * A font-family list ("'Inter', sans-serif", inherit, Roboto) or null:
+	 * letters, digits, spaces, commas, hyphens, underscores, dots and quotes only.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string|null
+	 */
+	protected static function font_family( $value ): ?string {
+		if ( ! is_string( $value ) ) {
+			return null;
+		}
+		$family = trim( $value );
+		return strlen( $family ) <= 200 && preg_match( '/^[A-Za-z0-9 ,\'"._-]*$/D', $family ) ? $family : null;
+	}
+
+	/**
+	 * A choice value (layout ids and the like): lowercase letters, digits,
+	 * hyphens and underscores.
+	 *
+	 * @param mixed $value Raw value.
+	 */
+	protected static function is_choice( $value ): bool {
+		return is_string( $value ) && 1 === preg_match( '/^[a-z0-9_-]{1,60}$/D', $value );
+	}
+
+	/**
+	 * Whether a structured value (nested settings objects) is safe to store:
+	 * identifier keys, finite numbers, booleans, null, and strings that are a
+	 * css_color(), a plain http(s) URL, or plain text without ; { } < > \ @ :
+	 * and without parentheses. At most 6 levels and 500 values.
+	 *
+	 * @param mixed $value Raw value.
+	 * @param int   $depth Current depth.
+	 * @param int   $count Values seen so far.
+	 */
+	protected static function is_safe_structure( $value, int $depth = 0, int &$count = 0 ): bool {
+		if ( ++$count > 500 || $depth > 6 ) {
+			return false;
+		}
+		if ( null === $value || is_bool( $value ) || is_int( $value ) ) {
+			return true;
+		}
+		if ( is_float( $value ) ) {
+			return is_finite( $value );
+		}
+		if ( is_string( $value ) ) {
+			if ( strlen( $value ) > 500 ) {
+				return false;
+			}
+			if ( null !== self::css_color( $value ) ) {
+				return true;
+			}
+			if ( preg_match( '#^https?://[A-Za-z0-9._~/?\#%=&+-]+$#D', $value ) ) {
+				return true;
+			}
+			return 1 === preg_match( '/^[^;{}<>\\\\@:()]*$/D', $value );
+		}
+		if ( is_array( $value ) ) {
+			foreach ( $value as $key => $item ) {
+				if ( ! is_int( $key ) && ! preg_match( '/^[A-Za-z0-9_-]{1,40}$/D', (string) $key ) ) {
+					return false;
+				}
+				if ( ! self::is_safe_structure( $item, $depth + 1, $count ) ) {
+					return false;
+				}
+			}
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * A whole-number size from an int or a digit string, within bounds, or null.
+	 *
+	 * @param mixed $value Raw value.
+	 * @param int   $min   Smallest.
+	 * @param int   $max   Largest.
+	 */
+	protected static function whole_number( $value, int $min, int $max ): ?int {
+		if ( ! is_int( $value ) && ! ( is_string( $value ) && preg_match( '/^\d{1,6}$/D', $value ) ) ) {
+			return null;
+		}
+		$n = (int) $value;
+		return $n >= $min && $n <= $max ? $n : null;
+	}
 }

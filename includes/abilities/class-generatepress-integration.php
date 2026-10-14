@@ -2,8 +2,8 @@
 /**
  * GeneratePress theme-settings pack.
  *
- * `generatepress-read`  : get-settings ({ group?, keys? }) — curated GP settings + metadata
- * `generatepress-write` : update-settings ({ values }) — allowlisted writes, skipped[] for the rest
+ * `generatepress-read`  : get-settings ({ group?, keys? }): curated GP settings + metadata
+ * `generatepress-write` : update-settings ({ values }): allowlisted, type-checked writes; skipped[] and rejected for the rest
  *
  * Registers only when GeneratePress is the active theme (free since 3.20.0).
  * GeneratePress stores its Customizer settings in the single `generate_settings`
@@ -27,21 +27,22 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 	const OPTION = 'generate_settings';
 
 	/**
-	 * Curated allowlist: key => { type, label, group, shape }. Verified against
-	 * GeneratePress 3.6.1.
+	 * Curated allowlist: key => { type, label, group, shape }, plus the select
+	 * choices and number bounds update-settings enforces. Verified against
+	 * GeneratePress 3.6.1; the choices match its Customizer (3.5.1 source).
 	 *
-	 * @var array<string,array{type:string,label:string,group:string,shape:string}>
+	 * @var array<string,array>
 	 */
 	const ALLOWLIST = array(
-		'global_colors'         => array( 'type' => 'array',  'label' => 'Global color palette', 'group' => 'palette', 'shape' => 'Array of { name, slug, color } — the palette other colors reference as var(--slug), e.g. var(--accent).' ),
-		'background_color'      => array( 'type' => 'color',  'label' => 'Body background',       'group' => 'colors', 'shape' => 'CSS color or a palette var, e.g. "var(--base-2)".' ),
-		'text_color'           => array( 'type' => 'color',  'label' => 'Body text color',       'group' => 'colors', 'shape' => 'CSS color or palette var, e.g. "var(--contrast)".' ),
-		'link_color'           => array( 'type' => 'color',  'label' => 'Link color',            'group' => 'colors', 'shape' => 'CSS color or palette var, e.g. "var(--accent)".' ),
-		'link_color_hover'     => array( 'type' => 'color',  'label' => 'Link hover color',      'group' => 'colors', 'shape' => 'CSS color or palette var.' ),
-		'container_width'      => array( 'type' => 'number', 'label' => 'Container width (px)',  'group' => 'layout', 'shape' => 'Integer px, e.g. 1200.' ),
-		'content_layout_setting' => array( 'type' => 'select', 'label' => 'Content layout',      'group' => 'layout', 'shape' => '"separate-containers" | "one-container" | "full-width".' ),
-		'container_alignment'  => array( 'type' => 'select', 'label' => 'Container alignment',   'group' => 'layout', 'shape' => '"boxed" | "text".' ),
-		'body_font_size'       => array( 'type' => 'number', 'label' => 'Body font size (px)',   'group' => 'typography', 'shape' => 'Integer px.' ),
+		'global_colors'         => array( 'type' => 'array',  'label' => 'Global color palette', 'group' => 'palette', 'shape' => 'Array of { name, slug, color }: the palette other colors reference as var(--slug), e.g. var(--accent). Slugs use a-z, 0-9 and hyphens.' ),
+		'background_color'      => array( 'type' => 'color',  'label' => 'Body background',       'group' => 'colors', 'shape' => 'Hex (#fff or #ffffff), rgb(), rgba() or a palette var, e.g. "var(--base-2)". "" resets it.' ),
+		'text_color'           => array( 'type' => 'color',  'label' => 'Body text color',       'group' => 'colors', 'shape' => 'Hex, rgb(), rgba() or a palette var, e.g. "var(--contrast)".' ),
+		'link_color'           => array( 'type' => 'color',  'label' => 'Link color',            'group' => 'colors', 'shape' => 'Hex, rgb(), rgba() or a palette var, e.g. "var(--accent)".' ),
+		'link_color_hover'     => array( 'type' => 'color',  'label' => 'Link hover color',      'group' => 'colors', 'shape' => 'Hex, rgb(), rgba() or a palette var.' ),
+		'container_width'      => array( 'type' => 'number', 'label' => 'Container width (px)',  'group' => 'layout', 'shape' => 'Integer px, e.g. 1200.', 'min' => 200, 'max' => 5000 ),
+		'content_layout_setting' => array( 'type' => 'select', 'label' => 'Content layout',      'group' => 'layout', 'shape' => '"separate-containers" | "one-container".', 'choices' => array( 'separate-containers', 'one-container' ) ),
+		'container_alignment'  => array( 'type' => 'select', 'label' => 'Container alignment',   'group' => 'layout', 'shape' => '"boxes" | "text".', 'choices' => array( 'boxes', 'text' ) ),
+		'body_font_size'       => array( 'type' => 'number', 'label' => 'Body font size (px)',   'group' => 'typography', 'shape' => 'Integer px.', 'min' => 6, 'max' => 200 ),
 	);
 
 	public function id(): string {
@@ -125,15 +126,23 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 		$option = get_option( self::OPTION, array() );
 		$option = is_array( $option ) ? $option : array();
 
-		$updated = array();
-		$skipped = array();
+		$updated  = array();
+		$skipped  = array();
+		$rejected = array();
 		foreach ( $values as $key => $value ) {
 			$key = (string) $key;
 			if ( ! isset( self::ALLOWLIST[ $key ] ) ) {
 				$skipped[] = $key;
 				continue;
 			}
-			$option[ $key ] = $value;
+			// GeneratePress prints these values into its inline CSS, and this write
+			// bypasses its Customizer sanitizers, so each value is checked here.
+			$clean = $this->sanitize_value( $key, $value );
+			if ( is_wp_error( $clean ) ) {
+				$rejected[ $key ] = $clean->get_error_message();
+				continue;
+			}
+			$option[ $key ] = $clean;
 			$updated[]      = $key;
 		}
 
@@ -143,9 +152,87 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 		}
 
 		return array(
-			'updated' => $updated,
-			'skipped' => $skipped,
+			'updated'  => $updated,
+			'skipped'  => $skipped,
+			'rejected' => $rejected,
 		);
+	}
+
+	/**
+	 * A value as GeneratePress's Customizer would store it, or an error naming why
+	 * it is refused.
+	 *
+	 * @param string $key   Allowlisted key.
+	 * @param mixed  $value Raw value.
+	 * @return mixed|WP_Error
+	 */
+	private function sanitize_value( string $key, $value ) {
+		$meta = self::ALLOWLIST[ $key ];
+		switch ( $meta['type'] ) {
+			case 'color':
+				$color = self::sanitize_color( $value );
+				return null === $color ? new WP_Error( 'invalid_color', __( 'Use a hex color (#fff or #ffffff), rgb(), rgba(), a palette var such as var(--accent), or "" to reset.', 'emcp-tools' ) ) : $color;
+			case 'number':
+				if ( ! is_int( $value ) && ! ( is_string( $value ) && preg_match( '/^\d{1,5}$/D', $value ) ) ) {
+					return new WP_Error( 'invalid_number', __( 'Use a whole number of pixels.', 'emcp-tools' ) );
+				}
+				$number = (int) $value;
+				if ( $number < $meta['min'] || $number > $meta['max'] ) {
+					/* translators: 1: smallest value, 2: largest value. */
+					return new WP_Error( 'invalid_number', sprintf( __( 'Use a value from %1$d to %2$d.', 'emcp-tools' ), $meta['min'], $meta['max'] ) );
+				}
+				return $number;
+			case 'select':
+				if ( ! is_string( $value ) || ! in_array( $value, $meta['choices'], true ) ) {
+					/* translators: %s: the allowed values. */
+					return new WP_Error( 'invalid_choice', sprintf( __( 'Use one of: %s.', 'emcp-tools' ), implode( ', ', $meta['choices'] ) ) );
+				}
+				return $value;
+			case 'array':
+				return self::sanitize_palette( $value );
+		}
+		return new WP_Error( 'invalid_value', __( 'This setting cannot be written.', 'emcp-tools' ) );
+	}
+
+	/**
+	 * A color GeneratePress accepts (see EMCP_Tools_Theme_Integration::css_color()).
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string|null
+	 */
+	private static function sanitize_color( $value ): ?string {
+		return self::css_color( $value );
+	}
+
+	/**
+	 * The global palette as GeneratePress stores it: a list of { name, slug, color }
+	 * with a-z/0-9/hyphen slugs, unique, and colors that pass sanitize_color().
+	 *
+	 * @param mixed $value Raw value.
+	 * @return array|WP_Error
+	 */
+	private static function sanitize_palette( $value ) {
+		if ( ! is_array( $value ) || count( $value ) > 100 ) {
+			return new WP_Error( 'invalid_palette', __( 'Use a list of up to 100 { name, slug, color } entries.', 'emcp-tools' ) );
+		}
+		$out   = array();
+		$slugs = array();
+		foreach ( array_values( $value ) as $i => $entry ) {
+			$slug  = is_array( $entry ) && is_string( $entry['slug'] ?? null ) ? $entry['slug'] : '';
+			$color = is_array( $entry ) ? self::sanitize_color( $entry['color'] ?? null ) : null;
+			if ( ! preg_match( '/^[a-z0-9-]{1,50}$/D', $slug ) || isset( $slugs[ $slug ] ) || null === $color || '' === $color || 0 === strpos( $color, 'var(' ) ) {
+				/* translators: %d: entry number, from 1. */
+				return new WP_Error( 'invalid_palette', sprintf( __( 'Palette entry %d needs a unique slug of a-z, 0-9 and hyphens and a hex, rgb() or rgba() color.', 'emcp-tools' ), $i + 1 ) );
+			}
+			$slugs[ $slug ] = true;
+			$name           = sanitize_text_field( is_string( $entry['name'] ?? null ) ? $entry['name'] : '' );
+			$out[]          = array(
+				'name'  => '' === $name ? $slug : $name,
+				'slug'  => $slug,
+				'color' => $color,
+			);
+		}
+		return $out;
 	}
 
 	/**

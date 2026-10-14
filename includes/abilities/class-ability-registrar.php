@@ -162,6 +162,11 @@ class EMCP_Tools_Ability_Registrar {
 		$content->register();
 		$this->ability_names = array_merge( $this->ability_names, $content->get_ability_names() );
 
+		// Taxonomy term tools (categories, tags, custom taxonomies; WordPress core).
+		$taxonomy = new EMCP_Tools_Taxonomy_Abilities();
+		$taxonomy->register();
+		$this->ability_names = array_merge( $this->ability_names, $taxonomy->get_ability_names() );
+
 		// Redirect Manager abilities (301/302 redirects + broken-link scan; no
 		// Elementor). Gated on the Redirects module (on by default) — abilities
 		// register before the module boots on init:5, so gate on is_enabled().

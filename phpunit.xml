@@ -129,6 +129,9 @@
         <testsuite name="Tutor">
             <directory>pro/tests/unit/tutor</directory>
         </testsuite>
+        <testsuite name="Taxonomy">
+            <directory>pro/tests/unit/taxonomy</directory>
+        </testsuite>
         <testsuite name="LifterLMS">
             <directory>pro/tests/unit/lifterlms</directory>
         </testsuite>

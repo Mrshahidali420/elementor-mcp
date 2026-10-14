@@ -225,6 +225,8 @@ Static Site generation through EMCP Cloud, backups kept out of the web root with
 
 * New: Static Site module. Turn your site into plain HTML files, download them as a ZIP, keep them in a folder, or serve them to visitors. Generations are counted by your EMCP Cloud account: 3 free, plus a monthly allowance with an EMCP Pro licence.
 * New: GeneratePress theme settings (palette, colors, layout, body font size) are now free; the write tool ships switched off. GenerateBlocks stays in Pro.
+* Security: GeneratePress, Astra and Kadence settings writes are checked by type, as each theme's Customizer does, so a value can no longer inject CSS or a script into the theme's inline styles.
+* New: Term tools for categories, tags and custom taxonomies: list-terms, get-term, create-term, update-term and delete-term (off by default), each undoable from History.
 * Security: Backups are kept outside the web root when possible, otherwise in an unguessable, fully protected folder. Set EMCP_BACKUP_DIR in wp-config.php to choose the folder. A weekly check warns if your web server serves it. Existing backups move automatically.
 * Security: The migration connector (1.4.0) keeps received archives and restore files private, and cleans them up.
 * Fixed: Backups made by hand or by an AI agent keep the newest 10 by default, with an optional size limit and a daily cleanup of leftovers.

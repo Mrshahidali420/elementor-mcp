@@ -268,6 +268,31 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 						'description' => __( 'Assigns category/tag/custom terms to a post.', 'emcp-tools' ),
 						'badges'      => array(),
 					),
+					'emcp-tools/list-terms'      => array(
+						'label'       => __( 'List Terms', 'emcp-tools' ),
+						'description' => __( 'Lists the terms of categories, tags or any custom taxonomy, with search and paging.', 'emcp-tools' ),
+						'badges'      => array( 'read-only' ),
+					),
+					'emcp-tools/get-term'        => array(
+						'label'       => __( 'Get Term', 'emcp-tools' ),
+						'description' => __( 'Returns one term with its meta, children and archive link.', 'emcp-tools' ),
+						'badges'      => array( 'read-only' ),
+					),
+					'emcp-tools/create-term'     => array(
+						'label'       => __( 'Create Term', 'emcp-tools' ),
+						'description' => __( 'Creates a category, tag or custom taxonomy term. Undo from History.', 'emcp-tools' ),
+						'badges'      => array(),
+					),
+					'emcp-tools/update-term'     => array(
+						'label'       => __( 'Update Term', 'emcp-tools' ),
+						'description' => __( 'Renames, re-slugs or moves a term, or edits its description and meta. Undo from History.', 'emcp-tools' ),
+						'badges'      => array(),
+					),
+					'emcp-tools/delete-term'     => array(
+						'label'       => __( 'Delete Term', 'emcp-tools' ),
+						'description' => __( 'Permanently deletes a term (confirm required). Undo from History restores it.', 'emcp-tools' ),
+						'badges'      => array( 'destructive' ),
+					),
 				),
 			),
 			'wp_settings'      => array(

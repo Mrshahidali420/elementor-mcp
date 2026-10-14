@@ -139,15 +139,23 @@ class EMCP_Tools_Astra_Integration extends EMCP_Tools_Theme_Integration {
 		$option = get_option( self::OPTION, array() );
 		$option = is_array( $option ) ? $option : array();
 
-		$updated = array();
-		$skipped = array();
+		$updated  = array();
+		$skipped  = array();
+		$rejected = array();
 		foreach ( $values as $key => $value ) {
 			$key = (string) $key;
 			if ( ! isset( self::ALLOWLIST[ $key ] ) ) {
 				$skipped[] = $key;
 				continue;
 			}
-			$option[ $key ] = $value;
+			// Astra prints these into its dynamic CSS and this write bypasses its
+			// Customizer sanitizers, so each value is checked here.
+			$clean = $this->sanitize_value( $key, $value );
+			if ( is_wp_error( $clean ) ) {
+				$rejected[ $key ] = $clean->get_error_message();
+				continue;
+			}
+			$option[ $key ] = $clean;
 			$updated[]      = $key;
 		}
 
@@ -157,9 +165,66 @@ class EMCP_Tools_Astra_Integration extends EMCP_Tools_Theme_Integration {
 		}
 
 		return array(
-			'updated' => $updated,
-			'skipped' => $skipped,
+			'updated'  => $updated,
+			'skipped'  => $skipped,
+			'rejected' => $rejected,
 		);
+	}
+
+	/**
+	 * A value as Astra's Customizer would store it, or an error naming why it is
+	 * refused.
+	 *
+	 * @param string $key   Allowlisted key.
+	 * @param mixed  $value Raw value.
+	 * @return mixed|WP_Error
+	 */
+	private function sanitize_value( string $key, $value ) {
+		switch ( self::ALLOWLIST[ $key ]['type'] ) {
+			case 'color':
+				$color = self::css_color( $value );
+				return null === $color ? new WP_Error( 'invalid_color', __( 'Use a hex color, rgb(), rgba(), a palette var such as var(--ast-global-color-0), or "" to reset.', 'emcp-tools' ) ) : $color;
+			case 'string':
+				$family = self::font_family( $value );
+				return null === $family ? new WP_Error( 'invalid_font', __( 'Use a font list such as "\'Inter\', sans-serif" or inherit.', 'emcp-tools' ) ) : $family;
+			case 'number':
+				$number = self::whole_number( $value, 200, 5000 );
+				return null === $number ? new WP_Error( 'invalid_number', __( 'Use a whole number of pixels from 200 to 5000.', 'emcp-tools' ) ) : $number;
+			case 'select':
+				return self::is_choice( $value ) ? $value : new WP_Error( 'invalid_choice', __( 'Use one of Astra\'s layout ids, e.g. header-main-layout-1.', 'emcp-tools' ) );
+			case 'array':
+				return self::responsive_size( $value );
+		}
+		return new WP_Error( 'invalid_value', __( 'This setting cannot be written.', 'emcp-tools' ) );
+	}
+
+	/**
+	 * A responsive font size in Astra's shape: desktop/tablet/mobile numbers (or
+	 * "") and px/em/rem/% units, as Astra's sanitize_responsive_typo() stores it.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return array|WP_Error
+	 */
+	private static function responsive_size( $value ) {
+		if ( ! is_array( $value ) ) {
+			return new WP_Error( 'invalid_size', __( 'Use { desktop, tablet, mobile, desktop-unit, tablet-unit, mobile-unit }.', 'emcp-tools' ) );
+		}
+		$out = array();
+		foreach ( array( 'desktop', 'tablet', 'mobile' ) as $device ) {
+			$size = $value[ $device ] ?? '';
+			if ( '' !== $size && ! ( is_int( $size ) || is_float( $size ) || ( is_string( $size ) && preg_match( '/^\d{1,4}(?:\.\d{1,3})?$/D', $size ) ) ) ) {
+				return new WP_Error( 'invalid_size', __( 'Sizes must be numbers (or "" for none).', 'emcp-tools' ) );
+			}
+			$out[ $device ] = is_string( $size ) && '' !== $size ? 0 + $size : $size;
+		}
+		foreach ( array( 'desktop', 'tablet', 'mobile' ) as $device ) {
+			$unit = $value[ $device . '-unit' ] ?? 'px';
+			if ( ! in_array( $unit, array( '', 'px', 'em', 'rem', '%' ), true ) ) {
+				return new WP_Error( 'invalid_size', __( 'Units must be px, em, rem or %.', 'emcp-tools' ) );
+			}
+			$out[ $device . '-unit' ] = $unit;
+		}
+		return $out;
 	}
 
 	/**

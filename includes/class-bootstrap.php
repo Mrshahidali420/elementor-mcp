@@ -487,6 +487,12 @@ class EMCP_Tools_Bootstrap {
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-redirect-abilities.php';
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-content-mirror-abilities.php';
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-content-abilities.php';
+		// Taxonomy term tools and their History undo (admin History screen and
+		// rollback-change both run where the MCP surface is loaded).
+		require_once EMCP_TOOLS_DIR . 'includes/taxonomy/class-term-api.php';
+		require_once EMCP_TOOLS_DIR . 'includes/taxonomy/class-term-history.php';
+		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-taxonomy-abilities.php';
+		EMCP_Tools_Term_History::boot();
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-dispatcher-abilities.php';
 		require_once EMCP_TOOLS_DIR . 'includes/abilities/class-settings-abilities.php';
 		require_once EMCP_TOOLS_DIR . 'includes/class-package-guard.php';

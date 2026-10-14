@@ -378,6 +378,10 @@ trait EMCP_Tools_Admin_Settings_Trait {
 		if ( $applied < 63 ) {
 			$add[] = 'emcp-tools/mailpoet-write';
 		}
+		// v64: delete-term (3.20.0) ships off; terms have no trash.
+		if ( $applied < 64 ) {
+			$add[] = 'emcp-tools/delete-term';
+		}
 		return array(
 			'add'   => array_values( array_unique( $add ) ),
 			'strip' => array_values( array_unique( $strip ) ),
