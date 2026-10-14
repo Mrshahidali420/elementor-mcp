@@ -196,6 +196,10 @@ final class EMCP_Tools_Term_History {
 		if ( null !== $result || ! is_array( $rb ) || self::TYPE !== ( $rb['type'] ?? '' ) ) {
 			return $result;
 		}
+		$allowed = self::authorize( $rb );
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
 		switch ( $rb['mode'] ?? '' ) {
 			case 'create':
 				return self::undo_create( (int) $rb['term_id'], (string) $rb['taxonomy'] );
@@ -205,6 +209,33 @@ final class EMCP_Tools_Term_History {
 				return self::undo_delete( (array) ( $rb['snapshot'] ?? array() ) );
 		}
 		return new WP_Error( 'unknown_rollback', __( 'Unknown term change.', 'emcp-tools' ) );
+	}
+
+	/**
+	 * The person undoing needs the same rights the undo uses: deleting the term
+	 * for a create, editing it for an update, creating and assigning terms for a
+	 * delete.
+	 *
+	 * @param array $rb Rollback ref.
+	 * @return true|WP_Error
+	 */
+	private static function authorize( array $rb ) {
+		$api  = EMCP_Tools_Term_Api::get();
+		$tax  = $api->taxonomy( (string) ( $rb['taxonomy'] ?? '' ) );
+		$id   = (int) ( $rb['term_id'] ?? 0 );
+		$mode = (string) ( $rb['mode'] ?? '' );
+		if ( ! $tax ) {
+			return true; // Each undo answers linked_unavailable for a taxonomy that is gone.
+		}
+		$caps = $tax['caps'];
+		if ( 'create' === $mode ) {
+			$ok = $api->can( $caps['delete_terms'] ) && ( ! $api->term( $id ) || $api->can( 'delete_term', $id ) );
+		} elseif ( 'update' === $mode ) {
+			$ok = $api->can( $caps['edit_terms'] ) && ( ! $api->term( $id ) || $api->can( 'edit_term', $id ) );
+		} else {
+			$ok = $api->can( $caps['edit_terms'] ) && $api->can( $caps['assign_terms'] );
+		}
+		return $ok ? true : new WP_Error( 'cannot_rollback_target', __( 'You do not have permission to change terms in this taxonomy.', 'emcp-tools' ) );
 	}
 
 	/**

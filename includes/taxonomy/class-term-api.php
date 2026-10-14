@@ -43,7 +43,7 @@ class EMCP_Tools_Term_Api {
 	 * A registered taxonomy, or null.
 	 *
 	 * @param string $tax Taxonomy name.
-	 * @return array{name:string,label:string,hierarchical:bool,public:bool,object_type:string[],caps:array}|null
+	 * @return array{name:string,label:string,hierarchical:bool,public:bool,show_ui:bool,object_type:string[],caps:array}|null
 	 */
 	public function taxonomy( string $tax ): ?array {
 		$obj = get_taxonomy( $tax );
@@ -55,6 +55,7 @@ class EMCP_Tools_Term_Api {
 			'label'        => (string) $obj->label,
 			'hierarchical' => (bool) $obj->hierarchical,
 			'public'       => (bool) $obj->public,
+			'show_ui'      => (bool) $obj->show_ui,
 			'object_type'  => array_values( (array) $obj->object_type ),
 			'caps'         => array(
 				'manage_terms' => (string) $obj->cap->manage_terms,

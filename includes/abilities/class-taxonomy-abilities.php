@@ -230,6 +230,10 @@ class EMCP_Tools_Taxonomy_Abilities {
 		}
 		$meta = array();
 		foreach ( $api->meta( $term['term_id'] ) as $key => $values ) {
+			// Protected keys (leading underscore) hold plugins' internal data.
+			if ( $api->is_protected_meta( (string) $key ) ) {
+				continue;
+			}
 			$meta[ $key ] = 1 === count( $values ) ? $values[0] : $values;
 		}
 		return $this->shape( $term ) + array(
@@ -247,6 +251,9 @@ class EMCP_Tools_Taxonomy_Abilities {
 		$tax = $api->taxonomy( sanitize_key( (string) ( $input['taxonomy'] ?? '' ) ) );
 		if ( ! $tax ) {
 			return $this->no_taxonomy();
+		}
+		if ( empty( $tax['show_ui'] ) ) {
+			return $this->not_editable();
 		}
 		if ( ! $api->can( $tax['caps']['edit_terms'] ) ) {
 			return $this->forbidden();
@@ -299,6 +306,9 @@ class EMCP_Tools_Taxonomy_Abilities {
 		$tax = $api->taxonomy( $term['taxonomy'] );
 		if ( ! $tax ) {
 			return $this->no_taxonomy();
+		}
+		if ( empty( $tax['show_ui'] ) ) {
+			return $this->not_editable();
 		}
 		if ( ! $api->can( 'edit_term', $id ) || ! $api->can( $tax['caps']['edit_terms'] ) ) {
 			return $this->forbidden();
@@ -366,6 +376,9 @@ class EMCP_Tools_Taxonomy_Abilities {
 			return new WP_Error( 'term_not_found', __( 'Term not found.', 'emcp-tools' ), array( 'status' => 404 ) );
 		}
 		$tax = $api->taxonomy( $term['taxonomy'] );
+		if ( $tax && empty( $tax['show_ui'] ) ) {
+			return $this->not_editable();
+		}
 		// delete_term refuses the taxonomy's default term (core maps it to do_not_allow).
 		if ( ! $tax || ! $api->can( 'delete_term', $id ) || ! $api->can( $tax['caps']['delete_terms'] ) ) {
 			return $this->forbidden();
@@ -410,10 +423,10 @@ class EMCP_Tools_Taxonomy_Abilities {
 		if ( ! $tax ) {
 			return $this->no_taxonomy();
 		}
-		if ( ! $api->can( $tax['caps']['assign_terms'] ) && ! $api->can( $tax['caps']['manage_terms'] ) ) {
-			return $this->forbidden();
-		}
-		return $tax;
+		// A public taxonomy's terms are readable by anyone who may assign them; a
+		// non-public one (internal or plugin data) needs manage_terms.
+		$can = $api->can( $tax['caps']['manage_terms'] ) || ( ! empty( $tax['public'] ) && $api->can( $tax['caps']['assign_terms'] ) );
+		return $can ? $tax : $this->forbidden();
 	}
 
 	/**
@@ -497,6 +510,10 @@ class EMCP_Tools_Taxonomy_Abilities {
 
 	private function no_taxonomy(): WP_Error {
 		return new WP_Error( 'invalid_taxonomy', __( 'Unknown taxonomy. list-taxonomies shows the registered ones.', 'emcp-tools' ), array( 'status' => 404 ) );
+	}
+
+	private function not_editable(): WP_Error {
+		return new WP_Error( 'taxonomy_not_editable', __( 'This taxonomy is internal (it has no admin screen), so its terms are not edited with these tools.', 'emcp-tools' ), array( 'status' => 403 ) );
 	}
 
 	private function forbidden(): WP_Error {
