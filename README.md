@@ -9,7 +9,8 @@
 [![License](https://img.shields.io/badge/license-GPL--2.0--or--later-green.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%3E%3D8.1-8892BF.svg)](https://php.net)
 [![WordPress](https://img.shields.io/badge/WordPress-%3E%3D6.9-21759B.svg)](https://wordpress.org)
-[![MCP Tools](https://img.shields.io/badge/MCP_Tools-200%2B-orange.svg)](https://emcptools.com/docs/tools/overview/)
+[![Free MCP Tools](https://img.shields.io/badge/Free_MCP_Tools-234-orange.svg)](https://emcptools.com/docs/tools/overview/)
+[![Total MCP Tools with Pro](https://img.shields.io/badge/Total_MCP_Tools_with_Pro-547-blue.svg)](https://emcptools.com/free-vs-pro/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![GitHub Issues](https://img.shields.io/github/issues/msrbuilds/elementor-mcp)](https://github.com/msrbuilds/elementor-mcp/issues)
 [![GitHub Stars](https://img.shields.io/github/stars/msrbuilds/elementor-mcp?style=social)](https://github.com/msrbuilds/elementor-mcp)
@@ -27,6 +28,8 @@ EMCP Tools is a WordPress plugin that exposes your site as **[MCP](https://model
 > **EMCP Pro, 25% off for the GitHub community**: use code **`MSRGIT`** at [emcptools.com/pricing](https://emcptools.com/pricing).
 
 ## What it does
+
+**234 Free tools, 547 total with Pro.** These are catalog totals across all supported integrations, including 313 additional Pro tools. The tools available to your AI client depend on your installed plugins, selected builder, and enabled tools. See the [tool reference](https://emcptools.com/docs/tools/overview/) for availability.
 
 **Build pages.** Dedicated integrations cover Elementor, Bricks, Breakdance, Avada, Divi 5, Thrive Architect, Oxygen, Kirki, WPBakery, Beaver Builder, BeBuilder and Visual Composer. Select one standalone builder while Gutenberg stays available. Spectra, Kadence Blocks, GenerateBlocks, Blocksy Blocks and Otter Blocks have independent toggles. Pro adapters expose native features verified for supported vendor versions; see each bundled skill for scope and limitations.
 
