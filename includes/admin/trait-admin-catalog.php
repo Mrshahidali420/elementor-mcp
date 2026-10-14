@@ -1386,7 +1386,7 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 					),
 					'emcp-tools/astra-write'   => array(
 						'label'            => __( 'Astra Write', 'emcp-tools' ),
-						'description'      => __( 'Write Astra settings; non-allowlisted keys are reported in skipped[].', 'emcp-tools' ),
+						'description'      => __( 'Write Astra settings; non-allowlisted keys are reported in skipped[] and values Astra would not accept in rejected, with nothing written for them.', 'emcp-tools' ),
 						'badges'           => array(),
 						'operations'       => array( 'update-settings' ),
 						'available'        => self::astra_available(),
@@ -1425,7 +1425,7 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 					),
 					'emcp-tools/kadence-write'        => array(
 						'label'            => __( 'Kadence Write', 'emcp-tools' ),
-						'description'      => __( 'Write Kadence settings as theme_mods; non-allowlisted keys are reported in skipped[].', 'emcp-tools' ),
+						'description'      => __( 'Write Kadence settings (theme_mods, and the global palette to its own option); non-allowlisted keys are reported in skipped[] and unsafe values in rejected, with nothing written for them.', 'emcp-tools' ),
 						'badges'           => array(),
 						'operations'       => array( 'update-settings' ),
 						'available'        => self::kadence_available(),
@@ -1464,7 +1464,7 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 					),
 					'emcp-tools/generatepress-write'  => array(
 						'label'            => __( 'GeneratePress Write', 'emcp-tools' ),
-						'description'      => __( 'Write GeneratePress settings; non-allowlisted keys are reported in skipped[].', 'emcp-tools' ),
+						'description'      => __( 'Write GeneratePress settings; non-allowlisted keys are reported in skipped[] and values GeneratePress would not accept in rejected, with nothing written for them.', 'emcp-tools' ),
 						'badges'           => array(),
 						'operations'       => array( 'update-settings' ),
 						'available'        => self::generatepress_available(),
