@@ -59,6 +59,8 @@ const ignorable = ( e ) => /favicon|net::ERR_BLOCKED/i.test( e );
 test( 'every sidebar screen renders in the frame without console errors', async ( {
 	page,
 } ) => {
+	// About thirty screens; a busy local site needs more than the default budget.
+	test.setTimeout( 300000 );
 	const errors = watchConsole( page );
 	await page.goto( '/wp-admin/admin.php?page=emcp-tools' );
 	const links = await page.$$eval(
@@ -107,7 +109,11 @@ test( 'every screen leaves the same space under its page header', async ( {
 	const gaps = {};
 	for ( const href of links ) {
 		await page.goto( href );
-		await page.locator( '[data-emcp-root] > *' ).first().waitFor();
+		// React screens mount into [data-emcp-root]; Management access is server-rendered.
+		await page
+			.locator( '[data-emcp-root] > *, .emcp-management-access' )
+			.first()
+			.waitFor();
 		const gap = await page.evaluate( () => {
 			const h = document.querySelector( '.eui-page-header' );
 			if ( ! h ) {

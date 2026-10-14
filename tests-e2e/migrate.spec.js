@@ -46,16 +46,14 @@ test( 'Backup & Migrate: every view renders and axe is clean', async ( {
 		page.getByRole( 'button', { name: 'Start backup' } )
 	).toBeVisible();
 	await axe( page );
-	for ( const [ label, marker ] of [
-		[ 'Restore', 'Server upload limits' ],
-		[ 'Migrate', 'Step 2: Pair the live site' ],
-		[ 'Sync', null ],
-		[ 'History', 'Backup history' ],
+	for ( const [ label, view, marker ] of [
+		[ 'Restore', 'restore', 'Server upload limits' ],
+		[ 'Migrate', 'migrate', 'Step 2: Pair the live site' ],
+		[ 'Sync', 'sync', null ],
+		[ 'History & Settings', 'history', 'Backup history' ],
 	] ) {
 		await page.getByRole( 'radio', { name: label, exact: true } ).click();
-		await expect( page ).toHaveURL(
-			new RegExp( 'view=' + label.toLowerCase() )
-		);
+		await expect( page ).toHaveURL( new RegExp( 'view=' + view ) );
 		if ( marker ) {
 			await expect(
 				page.getByRole( 'heading', { name: marker } )
