@@ -27,6 +27,8 @@ require_once __DIR__ . '/changes/class-change-cutover.php';
 require_once __DIR__ . '/changes/class-change-notices.php';
 require_once __DIR__ . '/changes/class-change-sessions.php';
 require_once __DIR__ . '/changes/class-change-retention.php';
+require_once __DIR__ . '/changes/class-db-rows.php';
+require_once __DIR__ . '/changes/class-db-change.php';
 require_once __DIR__ . '/changes/class-change-diff.php';
 require_once __DIR__ . '/changes/class-change-transaction.php';
 
@@ -692,6 +694,10 @@ class EMCP_Tools_Change_Log {
 	 * @return true|WP_Error
 	 */
 	private static function authorize_rollback_target( array $rb ) {
+		// Database rows: the capability the write needed (the database tools need manage_options).
+		if ( 'db-rows' === ( $rb['type'] ?? '' ) && ! current_user_can( (string) ( $rb['cap'] ?? 'manage_options' ) ) ) {
+			return new WP_Error( 'cannot_rollback_target', __( 'You do not have permission to undo this database change.', 'emcp-tools' ) );
+		}
 		$resolved = class_exists( 'EMCP_Tools_Change_Recorder' ) ? EMCP_Tools_Change_Recorder::resolve_before( $rb ) : $rb;
 		$post_id  = (int) ( $resolved['post_id'] ?? 0 );
 		if ( $post_id > 0 && get_post( $post_id ) ) {
@@ -933,6 +939,8 @@ class EMCP_Tools_Change_Log {
 				return self::rollback_file_delete( $rb );
 			case 'db-before-image':
 				return self::rollback_db( $rb );
+			case 'db-rows':
+				return EMCP_Tools_DB_Change::rollback( $rb, $force );
 			case 'meta-before-image':
 				return self::rollback_meta( $rb );
 			case 'post-fields':

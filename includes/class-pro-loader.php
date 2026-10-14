@@ -394,9 +394,29 @@ final class EMCP_Tools_Pro_Loader {
 		return class_exists( 'EMCP_Tools_FunnelKit_Write' ) ? EMCP_Tools_FunnelKit_Write::job_status( $status, (array) $job ) : $status;
 	}
 
+	/**
+	 * Clear AIOSEO's in-memory query cache after History restored aioseo_posts rows.
+	 *
+	 * @since 3.20.0
+	 * @param string $table Table name.
+	 */
+	public static function aioseo_rows_restored( $table ): void {
+		if ( ! function_exists( 'aioseo' ) || 'aioseo_posts' !== substr( (string) $table, -12 ) ) {
+			return;
+		}
+		$core = aioseo()->core ?? null;
+		if ( is_object( $core ) && isset( $core->db ) && method_exists( $core->db, 'bustCache' ) ) {
+			$core->db->bustCache( 'aioseo_posts' );
+		}
+	}
+
 	public static function wire_runtime_hooks(): void {
 		// AI Chat runtime wiring now lives in EMCP_Tools_AI_Chat_Module::register(),
 		// booted by the modules registry only when the module is active.
+
+		// All in One SEO (3.20.0): AIOSEO keeps query results in memory for the request, so after
+		// History puts aioseo_posts rows back its cache is cleared, or AIOSEO reads the old values.
+		add_action( 'emcp_tools_db_rows_restored', array( __CLASS__, 'aioseo_rows_restored' ) );
 
 		// FunnelKit History (3.19.0): undo handlers and the import-job cron on every request, since an
 		// undo runs in a later admin or MCP request. History is runtime; the write tool is in the

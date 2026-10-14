@@ -227,6 +227,7 @@ Static Site generation through EMCP Cloud, backups kept out of the web root with
 * New: GeneratePress theme settings (palette, colors, layout, body font size) are now free; the write tool ships switched off. GenerateBlocks stays in Pro.
 * Security: GeneratePress, Astra and Kadence settings writes are checked by type, as each theme's Customizer does, so a value can no longer inject CSS or a script into the theme's inline styles.
 * Fixed: GeneratePress body font size now changes the font size on GeneratePress 3.1 and later, and the Kadence global palette is saved where Kadence reads it.
+* Fixed: History can undo database tool changes (insert-row, update-rows, delete-rows) and All in One SEO post changes again, row by row with conflict checks. Writes over 500 rows are refused.
 * New: Term tools for categories, tags and custom taxonomies: list-terms, get-term, create-term, update-term and delete-term (off by default), each undoable from History.
 * Security: Backups are kept outside the web root when possible, otherwise in an unguessable, fully protected folder. Set EMCP_BACKUP_DIR in wp-config.php to choose the folder. A weekly check warns if your web server serves it. Existing backups move automatically.
 * Security: The migration connector (1.4.0) keeps received archives and restore files private, and cleans them up.

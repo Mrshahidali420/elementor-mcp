@@ -3,8 +3,8 @@
  * Database MCP tools: list-tables/describe-table/query (read; enabled) +
  * insert-row/update-rows/delete-rows (structured, parameterized writes;
  * disabled-by-default). Reads via validated read-only SQL; writes via
- * $wpdb->insert/update/delete with forced WHERE, protected tables, before-image
- * snapshots, confirm-on-delete, and an audit log.
+ * $wpdb->insert/update/delete with forced WHERE, protected tables and
+ * confirm-on-delete, each run through EMCP_Tools_DB_Change so History can undo it.
  *
  * @package EMCP_Tools
  * @since   3.0.0
@@ -151,22 +151,8 @@ class EMCP_Tools_Database_Abilities {
 
 	// ---- writes (disabled by default) ---------------------------------
 
-	/**
-	 * Record a DB write to the change ledger via the recorder (which offloads a
-	 * large before-image to the blob store), falling back to the raw ledger.
-	 *
-	 * @param array $entry Ledger entry.
-	 */
-	private function record_change( array $entry ): void {
-		if ( class_exists( 'EMCP_Tools_Change_Recorder' ) ) {
-			EMCP_Tools_Change_Recorder::record_db( $entry );
-		} elseif ( class_exists( 'EMCP_Tools_Change_Log' ) ) {
-			EMCP_Tools_Change_Log::record( $entry );
-		}
-	}
-
 	private function register_insert_row(): void {
-		$this->ability( 'emcp-tools/insert-row', __( 'Insert Row', 'emcp-tools' ), __( 'Insert a row into a table (parameterized). Refuses protected tables. Disabled by default.', 'emcp-tools' ), 'execute_insert_row', array( 'table' => array( 'type' => 'string' ), 'data' => array( 'type' => 'object' ) ), array( 'table', 'data' ), false );
+		$this->ability( 'emcp-tools/insert-row', __( 'Insert Row', 'emcp-tools' ), __( 'Insert a row into a table (parameterized). Refuses protected tables. Undoable from History when the table has a primary key and is InnoDB (the answer says undoable, or why not). Disabled by default.', 'emcp-tools' ), 'execute_insert_row', array( 'table' => array( 'type' => 'string' ), 'data' => array( 'type' => 'object' ) ), array( 'table', 'data' ), false );
 	}
 	public function execute_insert_row( $input ) {
 		$data = (array) ( $input['data'] ?? array() );
@@ -184,23 +170,45 @@ class EMCP_Tools_Database_Abilities {
 		if ( $unknown ) {
 			return $unknown;
 		}
-		global $wpdb;
-		$ok = $wpdb->insert( $table, $data );
-		if ( false === $ok ) {
-			return new \WP_Error( 'insert_failed', $wpdb->last_error ? $wpdb->last_error : __( 'Insert failed.', 'emcp-tools' ) );
+		$rows = EMCP_Tools_DB_Rows::driver();
+		$out  = EMCP_Tools_DB_Change::write(
+			array(
+				'table' => $table,
+				'op'    => 'insert',
+				'data'  => $data,
+				'run'   => static function () use ( $rows, $table, $data ) {
+					return $rows->insert( $table, $data );
+				},
+				'entry' => array(
+					'domain'  => 'database',
+					'action'  => 'insert',
+					'target'  => $table,
+					'summary' => 'Inserted a row into ' . $table,
+				),
+			)
+		);
+		if ( is_wp_error( $out ) ) {
+			return $out;
 		}
-		$this->record_change( array(
-				'domain'   => 'database',
-				'action'   => 'insert',
-				'target'   => $table,
-				'summary'  => 'Inserted a row into ' . $table,
-				'rollback' => array( 'type' => 'db-before-image', 'op' => 'insert', 'table' => $table, 'inserted_key' => $data ),
-			) );
-		return array( 'table' => $table, 'insert_id' => (int) $wpdb->insert_id, 'affected' => (int) $ok );
+		return array( 'table' => $table, 'insert_id' => $rows->insert_id(), 'affected' => (int) $out['result'] ) + self::undo_fields( $out );
+	}
+
+	/**
+	 * Whether History can undo the write, and why not.
+	 *
+	 * @param array $out EMCP_Tools_DB_Change::write() result.
+	 * @return array
+	 */
+	private static function undo_fields( array $out ): array {
+		$fields = array( 'undoable' => (bool) $out['undoable'], 'change_id' => (string) $out['change_id'] );
+		if ( ! $out['undoable'] ) {
+			$fields['not_undoable'] = (string) $out['not_undoable'];
+		}
+		return $fields;
 	}
 
 	private function register_update_rows(): void {
-		$this->ability( 'emcp-tools/update-rows', __( 'Update Rows', 'emcp-tools' ), __( 'Update rows matching an equality WHERE (required, non-empty). Parameterized; before-image snapshot; refuses protected tables. Disabled by default.', 'emcp-tools' ), 'execute_update_rows', array( 'table' => array( 'type' => 'string' ), 'data' => array( 'type' => 'object' ), 'where' => array( 'type' => 'object' ) ), array( 'table', 'data', 'where' ), false );
+		$this->ability( 'emcp-tools/update-rows', __( 'Update Rows', 'emcp-tools' ), __( 'Update rows matching an equality WHERE (required, non-empty). Parameterized; refuses protected tables. Undoable from History when the table has a primary key, is InnoDB and the update leaves primary key values alone (the answer says undoable, or why not). Refused with too_many_rows when it would change more than 500 rows. Disabled by default.', 'emcp-tools' ), 'execute_update_rows', array( 'table' => array( 'type' => 'string' ), 'data' => array( 'type' => 'object' ), 'where' => array( 'type' => 'object' ) ), array( 'table', 'data', 'where' ), false );
 	}
 	public function execute_update_rows( $input ) {
 		$data  = (array) ( $input['data'] ?? array() );
@@ -222,24 +230,34 @@ class EMCP_Tools_Database_Abilities {
 		if ( $unknown ) {
 			return $unknown;
 		}
-		$before = EMCP_Tools_Database_Guard::before_image( $table, $where );
-		global $wpdb;
-		$affected = $wpdb->update( $table, $data, $where );
-		if ( false === $affected ) {
-			return new \WP_Error( 'update_failed', $wpdb->last_error ? $wpdb->last_error : __( 'Update failed.', 'emcp-tools' ) );
+		$rows = EMCP_Tools_DB_Rows::driver();
+		$out  = EMCP_Tools_DB_Change::write(
+			array(
+				'table' => $table,
+				'op'    => 'update',
+				'where' => $where,
+				'data'  => $data,
+				'run'   => static function () use ( $rows, $table, $data, $where ) {
+					return $rows->update( $table, $data, $where );
+				},
+				'entry' => array(
+					'domain'  => 'database',
+					'action'  => 'update',
+					'target'  => $table,
+					'summary' => static function ( $affected ) use ( $table ) {
+						return sprintf( 'Updated %d row(s) in %s', (int) $affected, $table );
+					},
+				),
+			)
+		);
+		if ( is_wp_error( $out ) ) {
+			return $out;
 		}
-		$this->record_change( array(
-				'domain'   => 'database',
-				'action'   => 'update',
-				'target'   => $table,
-				'summary'  => sprintf( 'Updated %d row(s) in %s', (int) $affected, $table ),
-				'rollback' => array( 'type' => 'db-before-image', 'op' => 'update', 'table' => $table, 'key_cols' => array_keys( $where ), 'before_rows' => $before, 'partial' => ( count( $before ) >= EMCP_Tools_Database_Guard::BEFORE_IMAGE_CAP ) ),
-			) );
-		return array( 'table' => $table, 'affected' => (int) $affected, 'before_image_rows' => count( $before ) );
+		return array( 'table' => $table, 'affected' => (int) $out['result'], 'before_image_rows' => (int) $out['rows'] ) + self::undo_fields( $out );
 	}
 
 	private function register_delete_rows(): void {
-		$this->ability( 'emcp-tools/delete-rows', __( 'Delete Rows', 'emcp-tools' ), __( 'Delete rows matching an equality WHERE (required). Needs confirm:true; before-image snapshot; refuses protected tables. Disabled by default.', 'emcp-tools' ), 'execute_delete_rows', array( 'table' => array( 'type' => 'string' ), 'where' => array( 'type' => 'object' ), 'confirm' => array( 'type' => 'boolean' ) ), array( 'table', 'where' ), false );
+		$this->ability( 'emcp-tools/delete-rows', __( 'Delete Rows', 'emcp-tools' ), __( 'Delete rows matching an equality WHERE (required). Needs confirm:true; refuses protected tables. Undoable from History when the table has a primary key and is InnoDB (rows come back under their original keys). Refused with too_many_rows when it would delete more than 500 rows. Disabled by default.', 'emcp-tools' ), 'execute_delete_rows', array( 'table' => array( 'type' => 'string' ), 'where' => array( 'type' => 'object' ), 'confirm' => array( 'type' => 'boolean' ) ), array( 'table', 'where' ), false );
 	}
 	public function execute_delete_rows( $input ) {
 		if ( empty( $input['confirm'] ) || true !== $input['confirm'] ) {
@@ -260,19 +278,28 @@ class EMCP_Tools_Database_Abilities {
 		if ( $unknown ) {
 			return $unknown;
 		}
-		$before = EMCP_Tools_Database_Guard::before_image( $table, $where );
-		global $wpdb;
-		$affected = $wpdb->delete( $table, $where );
-		if ( false === $affected ) {
-			return new \WP_Error( 'delete_failed', $wpdb->last_error ? $wpdb->last_error : __( 'Delete failed.', 'emcp-tools' ) );
+		$rows = EMCP_Tools_DB_Rows::driver();
+		$out  = EMCP_Tools_DB_Change::write(
+			array(
+				'table' => $table,
+				'op'    => 'delete',
+				'where' => $where,
+				'run'   => static function () use ( $rows, $table, $where ) {
+					return $rows->delete( $table, $where );
+				},
+				'entry' => array(
+					'domain'  => 'database',
+					'action'  => 'delete',
+					'target'  => $table,
+					'summary' => static function ( $affected ) use ( $table ) {
+						return sprintf( 'Deleted %d row(s) from %s', (int) $affected, $table );
+					},
+				),
+			)
+		);
+		if ( is_wp_error( $out ) ) {
+			return $out;
 		}
-		$this->record_change( array(
-				'domain'   => 'database',
-				'action'   => 'delete',
-				'target'   => $table,
-				'summary'  => sprintf( 'Deleted %d row(s) from %s', (int) $affected, $table ),
-				'rollback' => array( 'type' => 'db-before-image', 'op' => 'delete', 'table' => $table, 'key_cols' => array_keys( $where ), 'before_rows' => $before, 'partial' => ( count( $before ) >= EMCP_Tools_Database_Guard::BEFORE_IMAGE_CAP ) ),
-			) );
-		return array( 'table' => $table, 'affected' => (int) $affected, 'before_image_rows' => count( $before ) );
+		return array( 'table' => $table, 'affected' => (int) $out['result'], 'before_image_rows' => (int) $out['rows'] ) + self::undo_fields( $out );
 	}
 }
