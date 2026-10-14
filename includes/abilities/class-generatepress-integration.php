@@ -42,7 +42,7 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 		'container_width'      => array( 'type' => 'number', 'label' => 'Container width (px)',  'group' => 'layout', 'shape' => 'Integer px, e.g. 1200.', 'min' => 200, 'max' => 5000 ),
 		'content_layout_setting' => array( 'type' => 'select', 'label' => 'Content layout',      'group' => 'layout', 'shape' => '"separate-containers" | "one-container".', 'choices' => array( 'separate-containers', 'one-container' ) ),
 		'container_alignment'  => array( 'type' => 'select', 'label' => 'Container alignment',   'group' => 'layout', 'shape' => '"boxes" | "text".', 'choices' => array( 'boxes', 'text' ) ),
-		'body_font_size'       => array( 'type' => 'number', 'label' => 'Body font size (px)',   'group' => 'typography', 'shape' => 'Integer px.', 'min' => 6, 'max' => 200 ),
+		'body_font_size'       => array( 'type' => 'number', 'label' => 'Body font size (px)',   'group' => 'typography', 'shape' => 'Integer px; null when the theme default applies. With dynamic typography (the GeneratePress 3.x default) it is the body rule of the typography list.', 'min' => 6, 'max' => 200 ),
 	);
 
 	public function id(): string {
@@ -106,6 +106,9 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 	 * @return mixed
 	 */
 	private function read_value( string $key ) {
+		if ( 'body_font_size' === $key ) {
+			return $this->read_body_font_size();
+		}
 		if ( function_exists( 'generate_get_option' ) ) {
 			return generate_get_option( $key );
 		}
@@ -142,8 +145,12 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 				$rejected[ $key ] = $clean->get_error_message();
 				continue;
 			}
-			$option[ $key ] = $clean;
-			$updated[]      = $key;
+			if ( 'body_font_size' === $key ) {
+				$option = self::with_body_font_size( $option, $clean );
+			} else {
+				$option[ $key ] = $clean;
+			}
+			$updated[] = $key;
 		}
 
 		if ( ! empty( $updated ) ) {
@@ -233,6 +240,86 @@ class EMCP_Tools_GeneratePress_Integration extends EMCP_Tools_Theme_Integration 
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * GeneratePress 3.x prints typography from the `typography` list when dynamic
+	 * typography is on (the default since 3.1; sites upgraded from older versions
+	 * keep it off) and ignores the legacy `body_font_size` key then.
+	 *
+	 * @param array $option The generate_settings option.
+	 * @return bool
+	 */
+	private static function dynamic_typography( array $option ): bool {
+		if ( function_exists( 'generate_is_using_dynamic_typography' ) ) {
+			return (bool) generate_is_using_dynamic_typography();
+		}
+		return ! array_key_exists( 'use_dynamic_typography', $option ) || (bool) $option['use_dynamic_typography'];
+	}
+
+	/**
+	 * Index of the core body rule in the typography list, or null.
+	 *
+	 * @param array $rules Typography rules.
+	 * @return int|null
+	 */
+	private static function body_rule( array $rules ): ?int {
+		foreach ( $rules as $i => $rule ) {
+			if ( is_array( $rule ) && 'body' === ( $rule['selector'] ?? '' ) && 'core' === ( $rule['module'] ?? 'core' ) ) {
+				return $i;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * The body font size in px, or null when none is set (the theme default
+	 * applies) or the body rule uses another unit.
+	 *
+	 * @return int|null
+	 */
+	private function read_body_font_size(): ?int {
+		$option = get_option( self::OPTION, array() );
+		$option = is_array( $option ) ? $option : array();
+		if ( self::dynamic_typography( $option ) ) {
+			$rules = is_array( $option['typography'] ?? null ) ? $option['typography'] : array();
+			$i     = self::body_rule( $rules );
+			if ( null === $i || ! is_numeric( $rules[ $i ]['fontSize'] ?? '' ) || ! in_array( $rules[ $i ]['fontSizeUnit'] ?? 'px', array( '', 'px' ), true ) ) {
+				return null;
+			}
+			return (int) $rules[ $i ]['fontSize'];
+		}
+		$size = $option['body_font_size'] ?? ( function_exists( 'generate_get_default_fonts' ) ? ( generate_get_default_fonts()['body_font_size'] ?? null ) : null );
+		return is_numeric( $size ) ? (int) $size : null;
+	}
+
+	/**
+	 * The option with the body font size set where GeneratePress reads it.
+	 *
+	 * @param array $option The generate_settings option.
+	 * @param int   $size   Size in px.
+	 * @return array
+	 */
+	private static function with_body_font_size( array $option, int $size ): array {
+		if ( ! self::dynamic_typography( $option ) ) {
+			$option['body_font_size'] = $size;
+			return $option;
+		}
+		$rules = is_array( $option['typography'] ?? null ) ? array_values( $option['typography'] ) : array();
+		$i     = self::body_rule( $rules );
+		if ( null === $i ) {
+			$rules[] = array(
+				'selector' => 'body',
+				'module'   => 'core',
+				'group'    => 'base',
+			);
+			$i       = count( $rules ) - 1;
+		}
+		// GeneratePress's Customizer stores sizes as strings.
+		$rules[ $i ]['fontSize']     = (string) $size;
+		$rules[ $i ]['fontSizeUnit'] = 'px';
+		$option['typography']        = $rules;
+		return $option;
 	}
 
 	/**
