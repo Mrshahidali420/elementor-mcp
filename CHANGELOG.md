@@ -2,6 +2,10 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
+## [Unreleased]
+
+- New: **scan-security: new `compromise` audit** (twin-folder backdoors, back-dated files, search-engine cloaking, public backups, suspicious mu-plugins, orphaned cron) + 3 malware rules. The fifth audit area looks for signs a site is or was hacked: folders named like their parent that hold their own `.htaccess`, PHP files written recently but carrying a much older modification date, a homepage that shows Googlebot a different title or page than visitors, backup archives (`.wpress`, `-db.gz`, `.sql` and similar) that anyone can download, must-use plugins named like regular plugins, and scheduled tasks with no callback whose names look like re-infection jobs. The new malware rules catch superglobal names split into joined pieces, known injector markers, and code included from compressed or archive streams. Read-only: one bounded walk (stats and `truncated` in `scan_meta.compromise`) plus requests to the site's own URLs. Run it alone with `checks: ["compromise"]`.
+
 ## [3.20.0] - 2026-10-13
 
 > Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.

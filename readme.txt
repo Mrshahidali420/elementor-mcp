@@ -219,6 +219,10 @@ EMCP Tools works on your own site. It contacts the services below only in the si
 
 == Changelog ==
 
+= Unreleased =
+
+* New: scan-security: new `compromise` audit (twin-folder backdoors, back-dated files, search-engine cloaking, public backups, suspicious mu-plugins, orphaned cron) + 3 malware rules (split superglobal names, injector markers, includes from compressed or archive streams). Read-only and bounded; run it alone with checks: ["compromise"].
+
 = 3.20.0 =
 
 Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.
