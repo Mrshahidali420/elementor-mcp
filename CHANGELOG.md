@@ -2,6 +2,10 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
+## [Unreleased]
+
+- New: **search-access-log tool** (read-only). Searches the web server access logs your site can read, plain and `.gz`, to find the request that brought a hack back, for example a POST to a back-door file at the moment files were rewritten. Filter by text, IP, method, status (`404` or `4xx`), path and a since/until window, or pass `list_files: true` to see which logs were found and how big they are. Logs are looked up in a fixed list of folders (the `EMCP_TOOLS_ACCESS_LOG_DIR` constant when set, the logs folders next to and above the site, which covers IONOS, `~/logs`, and the Apache and nginx log folders), and you can only pick from the files it found, never a path. Query strings are removed from results by default because they can hold tokens. Every search stops at a match limit, a time budget and a byte budget, and says when it did.
+
 ## [3.20.0] - 2026-10-13
 
 > Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.

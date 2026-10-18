@@ -219,6 +219,10 @@ EMCP Tools works on your own site. It contacts the services below only in the si
 
 == Changelog ==
 
+= Unreleased =
+
+* New: search-access-log tool (read-only). Searches the web server access logs the site can read, plain and .gz, by text, IP, method, status, path and time window, to find the request behind a hack. Only logs found in a fixed list of folders can be read (set EMCP_TOOLS_ACCESS_LOG_DIR to add yours). Query strings are removed from results by default, and every search is bounded by a match limit, a time budget and a byte budget.
+
 = 3.20.0 =
 
 Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.

@@ -325,6 +325,11 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 						'description' => __( 'Scans for malware heuristics, core file integrity, configuration hardening, and outdated/abandoned software; returns a scored report with recommendations.', 'emcp-tools' ),
 						'badges'      => array( 'read-only' ),
 					),
+					'emcp-tools/search-access-log' => array(
+						'label'       => __( 'Search Access Log', 'emcp-tools' ),
+						'description' => __( 'Searches the web server access logs the site can read (plain and .gz) to find the request behind a hack. Query strings are removed from results by default.', 'emcp-tools' ),
+						'badges'      => array( 'read-only' ),
+					),
 				),
 			),
 			'filesystem'       => array(
