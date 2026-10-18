@@ -219,6 +219,10 @@ EMCP Tools works on your own site. It contacts the services below only in the si
 
 == Changelog ==
 
+= Unreleased =
+
+* New: Quarantine a suspicious file instead of deleting it. quarantine-file moves a file or folder out of the web root (into emcp-quarantine above WordPress, or wp-content/emcp-quarantine behind a deny-all .htaccess when that is not writable) and keeps a manifest with its path, size, sha256, times, reason, user and date. list-quarantine lists entries and restore-quarantined-file puts one back. Core files, wp-admin, wp-includes and symlinks leaving the site are refused. Undo also works from History. Both write tools ship switched off and need confirm: true.
+
 = 3.20.0 =
 
 Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.

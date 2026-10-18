@@ -2,6 +2,10 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
+## [Unreleased]
+
+- New: **Quarantine a suspicious file instead of deleting it.** `quarantine-file` moves a file or folder out of the web root so it stops running, into `emcp-quarantine` in the folder above WordPress, or `wp-content/emcp-quarantine` (blocked by .htaccess, with an empty index.php) when that folder cannot be written. The result says which one was used. A manifest keeps the original path, size, sha256, modified and changed times, the reason, who did it and when. WordPress core files, `wp-admin`, `wp-includes`, the quarantine folder and symlinks that point outside the site are refused. When the move crosses filesystems, every file is copied and checked by size and sha256 before the original is deleted. `list-quarantine` lists the entries and `restore-quarantined-file` puts one back, refusing if something now sits at the original path unless `overwrite` is set, in which case that item is quarantined too, never deleted. Each quarantine is also in History, where Undo restores it. Both write tools ship switched off and need `confirm: true`. Refs #160.
+
 ## [3.20.0] - 2026-10-13
 
 > Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.
