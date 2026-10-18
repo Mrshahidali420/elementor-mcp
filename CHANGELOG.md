@@ -2,6 +2,10 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
+## [Unreleased]
+
+- New: **Harden the site from your AI agent, and undo it from History.** `harden-site` turns four toggles on or off. `disable_xmlrpc` answers XML-RPC requests with a 403 and removes the pingback header, RSD link and pingback methods. `hide_wp_version` removes the generator tag and the `ver=` query on assets where it equals the WordPress version. `block_user_enumeration` hides the `/wp/v2/users` REST routes from anyone who cannot list users or edit posts, sends logged-out `?author=N` and author archive requests to the home page, and drops the users sitemap and oEmbed author fields. `hide_php_errors` turns off on-screen PHP errors for everyone except administrators; it cannot change `WP_DEBUG` settings in wp-config.php. The toggles live in one option, nothing is hooked while they are all off, and WP-CLI and cron are never affected. The tool ships switched off and needs `confirm: true`. `get-hardening-status` shows the toggles and checks what a visitor sees: whether XML-RPC answers, whether the generator tag is there, whether `/wp/v2/users` lists users, whether `?author=1` reveals a username, and whether readme.html and license.txt exist. Those two are static files a plugin cannot block, so there is no toggle for them; delete them if you want them gone. Refs #160.
+
 ## [3.20.0] - 2026-10-13
 
 > Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.

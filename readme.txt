@@ -219,6 +219,10 @@ EMCP Tools works on your own site. It contacts the services below only in the si
 
 == Changelog ==
 
+= Unreleased =
+
+* New: harden-site turns site hardening toggles on or off: block XML-RPC, hide the WordPress version, block user enumeration (users REST routes for visitors, ?author=N and author archives), hide PHP errors from visitors. Each change can be undone from History. It ships switched off and needs confirm: true. get-hardening-status shows the toggles and checks what a visitor sees, including whether readme.html and license.txt exist (static files no plugin toggle can block).
+
 = 3.20.0 =
 
 Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.
