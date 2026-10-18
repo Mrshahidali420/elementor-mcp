@@ -382,6 +382,10 @@ trait EMCP_Tools_Admin_Settings_Trait {
 		if ( $applied < 64 ) {
 			$add[] = 'emcp-tools/delete-term';
 		}
+		// v65: kill-process (3.21.0) ships off; it cannot be undone. list-processes stays on.
+		if ( $applied < 65 ) {
+			$add[] = 'emcp-tools/kill-process';
+		}
 		return array(
 			'add'   => array_values( array_unique( $add ) ),
 			'strip' => array_values( array_unique( $strip ) ),

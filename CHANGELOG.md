@@ -2,6 +2,11 @@
 
 All notable changes to MCP Tools for Elementor are documented in this file.
 
+## [Unreleased]
+
+- New: **See and stop processes that keep reinfecting a site.** `list-processes` shows the processes running as the site's own user (Linux only, read from `/proc`, no shell): pid, parent, state, start time, command line, program and working folder. It marks the current PHP process and its parent and flags anything suspicious with a reason: running from `/tmp`, `/var/tmp` or `/dev/shm`, hidden names, a deleted program file, shell loops, a fake kernel thread name, or PHP running a file from uploads. Passwords and tokens in command lines are masked. Read-only, on by default.
+- New: **`kill-process` stops one listed process** with TERM or KILL. It needs the pid and start time from the list plus `confirm: true`, checks the process again right before sending, and refuses PID 1, the PHP process itself and its parent, other users' processes, and a pid that now belongs to a different process. It reports whether the process ended. This cannot be undone; History records it for the audit trail only. Switched off by default.
+
 ## [3.20.0] - 2026-10-13
 
 > Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.

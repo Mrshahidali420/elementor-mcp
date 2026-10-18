@@ -325,6 +325,16 @@ trait EMCP_Tools_Admin_Catalog_Trait {
 						'description' => __( 'Scans for malware heuristics, core file integrity, configuration hardening, and outdated/abandoned software; returns a scored report with recommendations.', 'emcp-tools' ),
 						'badges'      => array( 'read-only' ),
 					),
+					'emcp-tools/list-processes' => array(
+						'label'       => __( 'List Processes', 'emcp-tools' ),
+						'description' => __( 'Lists processes running as the site user (Linux only) and flags suspicious ones, such as shell loops running from /tmp.', 'emcp-tools' ),
+						'badges'      => array( 'read-only' ),
+					),
+					'emcp-tools/kill-process' => array(
+						'label'       => __( 'Kill Process', 'emcp-tools' ),
+						'description' => __( 'Stops one listed process (TERM or KILL, needs confirm). Cannot be undone. Disabled by default.', 'emcp-tools' ),
+						'badges'      => array(),
+					),
 				),
 			),
 			'filesystem'       => array(

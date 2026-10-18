@@ -219,6 +219,11 @@ EMCP Tools works on your own site. It contacts the services below only in the si
 
 == Changelog ==
 
+= Unreleased =
+
+* New: list-processes shows the processes running as the site user (Linux only) and flags suspicious ones, such as a shell loop running from /tmp or PHP running a file from uploads. Read-only; passwords in command lines are masked.
+* New: kill-process stops one listed process (TERM or KILL, confirm required, refuses PID 1, PHP itself and reused pids). It cannot be undone and ships switched off.
+
 = 3.20.0 =
 
 Static Site generation through EMCP Cloud, backups kept out of the web root with retention for every backup, a Block Builder that honors block styles on the front end with a real repeater, and a fix for sites where another plugin took over EMCP's licence details.
