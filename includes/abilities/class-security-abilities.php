@@ -61,7 +61,7 @@ class EMCP_Tools_Security_Abilities {
 						),
 						'deep'        => array( 'type' => 'boolean', 'description' => __( 'When true, the malware scan covers ALL plugins/themes and the wider tree (slower). Default false: uploads + active plugins/themes only.', 'emcp-tools' ) ),
 						'max_files'   => array( 'type' => 'integer', 'description' => __( 'Override the malware file-count cap (default 2000, ceiling 20000).', 'emcp-tools' ) ),
-						'max_seconds' => array( 'type' => 'integer', 'description' => __( 'Override the malware scan time budget in seconds (default 20, ceiling 120).', 'emcp-tools' ) ),
+						'max_seconds' => array( 'type' => 'integer', 'description' => __( 'Time budget in seconds for the malware scan and, separately, for the compromise audit (default 20, ceiling 120). A compromise audit that runs out of time says which checks were only partly covered.', 'emcp-tools' ) ),
 					),
 				),
 				'output_schema'       => array(

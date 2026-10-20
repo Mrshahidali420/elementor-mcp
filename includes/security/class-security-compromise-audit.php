@@ -43,6 +43,9 @@ class EMCP_Tools_Security_Compromise_Audit {
 
 	const PHP_EXT_RE = '/\.(php|phtml|php5|php6|php7|php8|inc)$/i';
 
+	/** Folder names the walk never enters: dependency and version-control trees, which are huge and never served as site code. */
+	const SKIPPED_DIRS = array( 'node_modules', '.git', '.svn', '.hg' );
+
 	/** Path segments where legitimate libraries nest a same-named folder. */
 	const LIBRARY_SEGMENTS = array( 'vendor', 'vendor_prefixed', 'node_modules', 'lib' );
 
@@ -59,6 +62,7 @@ class EMCP_Tools_Security_Compromise_Audit {
 	const BACKUP_DIRS = array(
 		'ai1wm-backups', 'updraft', 'backups', 'backup', 'backupbuddy_backups',
 		'wpvivid_backup', 'backups-dup-lite', 'uploads/backwpup*', 'uploads/backup*',
+		'emcp-backups*',
 	);
 
 	const BACKUP_EXT_RE      = '/\.(wpress|sql|sql\.gz|gz|zip|tar|tar\.gz|tgz|bak|tmp)$/i';
@@ -71,10 +75,11 @@ class EMCP_Tools_Security_Compromise_Audit {
 	/**
 	 * Pure: hidden twin folders (a directory named exactly like its parent).
 	 *
-	 * @param array $twins Each: array( 'path' => ABSPATH-relative dir, 'files' => string[] file names in it ).
+	 * @param array       $twins            Each: array( 'path' => ABSPATH-relative dir, 'files' => string[] file names in it ).
+	 * @param string|null $truncated_reason Why the walk stopped early, or null when it covered everything.
 	 * @return array Finding
 	 */
-	public function evaluate_twin_folders( array $twins ): array {
+	public function evaluate_twin_folders( array $twins, ?string $truncated_reason = null ): array {
 		$critical = array();
 		$warning  = array();
 
@@ -102,6 +107,9 @@ class EMCP_Tools_Security_Compromise_Audit {
 		}
 
 		if ( empty( $critical ) && empty( $warning ) ) {
+			if ( null !== $truncated_reason ) {
+				return EMCP_Tools_Security_Finding::make( 'compromise_twin_folder', 'compromise', 'Hidden twin folders', 'info', array( 'count' => 0, 'paths' => array(), 'truncated_reason' => $truncated_reason ), self::partial_message( 'folders named like their parent folder' ), self::PARTIAL_RECOMMENDATION );
+			}
 			return EMCP_Tools_Security_Finding::make( 'compromise_twin_folder', 'compromise', 'Hidden twin folders', 'pass', array( 'count' => 0, 'paths' => array() ), 'No suspicious folders named like their parent folder were found.' );
 		}
 
@@ -111,6 +119,9 @@ class EMCP_Tools_Security_Compromise_Audit {
 			'with_htaccess' => count( $critical ),
 			'paths'         => array_slice( $flagged, 0, self::MAX_LISTED ),
 		);
+		if ( null !== $truncated_reason ) {
+			$value['truncated_reason'] = $truncated_reason;
+		}
 
 		if ( ! empty( $critical ) ) {
 			return EMCP_Tools_Security_Finding::make(
@@ -155,11 +166,15 @@ class EMCP_Tools_Security_Compromise_Audit {
 	 *
 	 * @param array    $files              Each: array( 'path', 'mtime', 'ctime' ), ABSPATH-relative paths.
 	 * @param int      $now                Unix seconds.
-	 * @param string[] $sensitive_prefixes Relative dirs where a hit is critical (WP root is always sensitive).
+	 * @param string[]    $sensitive_prefixes Relative dirs where a hit is critical (WP root is always sensitive).
+	 * @param string|null $truncated_reason   Why the walk stopped early, or null when it covered everything.
 	 * @return array Finding
 	 */
-	public function evaluate_timestomp( array $files, int $now, array $sensitive_prefixes = array( 'wp-content/mu-plugins', 'wp-includes' ) ): array {
+	public function evaluate_timestomp( array $files, int $now, array $sensitive_prefixes = array( 'wp-content/mu-plugins', 'wp-includes' ), ?string $truncated_reason = null ): array {
 		$flagged = $this->find_timestomped( $files, $now );
+		if ( empty( $flagged ) && null !== $truncated_reason ) {
+			return EMCP_Tools_Security_Finding::make( 'compromise_timestomp', 'compromise', 'Back-dated files', 'info', array( 'count' => 0, 'files' => array(), 'truncated_reason' => $truncated_reason ), self::partial_message( 'back-dated PHP files' ), self::PARTIAL_RECOMMENDATION );
+		}
 		if ( empty( $flagged ) ) {
 			return EMCP_Tools_Security_Finding::make( 'compromise_timestomp', 'compromise', 'Back-dated files', 'pass', array( 'count' => 0, 'files' => array() ), sprintf( 'No PHP file changed in the last %d days carries a much older modification date.', self::TIMESTOMP_DAYS ) );
 		}
@@ -181,6 +196,9 @@ class EMCP_Tools_Security_Compromise_Audit {
 		}
 
 		$value  = array( 'count' => count( $flagged ), 'in_core_or_mu' => $sensitive, 'files' => $listed );
+		if ( null !== $truncated_reason ) {
+			$value['truncated_reason'] = $truncated_reason;
+		}
 		$how    = 'Compare each file against a fresh copy of WordPress core or the plugin/theme it belongs to. Restoring a backup, cp -p, rsync -a or an FTP client that preserves timestamps can also cause this, so only files that differ from the original matter.';
 		$status = $sensitive > 0 ? 'critical' : 'warning';
 		$msg    = $sensitive > 0
@@ -317,7 +335,7 @@ class EMCP_Tools_Security_Compromise_Audit {
 		if ( $public > 0 ) {
 			return EMCP_Tools_Security_Finding::make(
 				'compromise_public_backup', 'compromise', 'Publicly downloadable backups', 'critical', $value,
-				sprintf( '%d backup file(s) can be downloaded by anyone (HTTP 200), which exposes a full copy of the database and wp-config.php secrets.', $public ),
+				sprintf( '%d backup file(s) can be downloaded by anyone (HTTP 200). A site backup can expose a full copy of the database and the wp-config.php secrets.', $public ),
 				'Move backups off the web root (or to remote storage) and delete the public copies now; block the backup folder with a deny rule. Assume the database leaked: rotate admin passwords, database password and the wp-config.php salts.'
 			);
 		}
@@ -429,9 +447,10 @@ class EMCP_Tools_Security_Compromise_Audit {
 	 *
 	 * @return array { findings: Finding[], stats: array }
 	 */
-	public function run(): array {
-		$now  = time();
-		$walk = $this->walk_install( $now );
+	public function run( int $max_seconds = self::TIME_BUDGET ): array {
+		$now      = time();
+		$deadline = microtime( true ) + max( 1, $max_seconds );
+		$walk     = $this->walk_install( $now, $deadline );
 
 		$mu_dir    = defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : rtrim( WP_CONTENT_DIR, '/\\' ) . '/mu-plugins';
 		$mu_real   = $this->realpath_slashed( $mu_dir );
@@ -441,14 +460,14 @@ class EMCP_Tools_Security_Compromise_Audit {
 			$backdated[] = basename( (string) $file['path'] );
 		}
 
-		$visitor = $this->fetch_page( self::VISITOR_UA );
-		$bot     = $this->fetch_page( self::BOT_UA );
+		$visitor = $this->fetch_page( self::VISITOR_UA, $deadline );
+		$bot     = $this->fetch_page( self::BOT_UA, $deadline );
 
-		$backups = $this->gather_backups();
+		$backups = $this->gather_backups( $deadline );
 
 		$findings = array(
-			$this->evaluate_twin_folders( $walk['twins'] ),
-			$this->evaluate_timestomp( $walk['php'], $now, $sensitive ),
+			$this->evaluate_twin_folders( $walk['twins'], $walk['truncated_reason'] ),
+			$this->evaluate_timestomp( $walk['php'], $now, $sensitive, $walk['truncated_reason'] ),
 			$this->evaluate_cloaking( $visitor, $bot ),
 			$this->evaluate_public_backups( $backups['candidates'] ),
 			$this->evaluate_mu_plugins( $this->gather_mu_plugins(), $this->active_plugin_slugs(), $backdated ),
@@ -477,10 +496,11 @@ class EMCP_Tools_Security_Compromise_Audit {
 	 * contents, never follows symlinks, skips unreadable folders silently.
 	 * Uploads is walked last so a huge media library cannot starve the code dirs.
 	 *
-	 * @param int $now
+	 * @param int   $now
+	 * @param float $deadline microtime() by which the whole audit must finish.
 	 * @return array{ twins: array, php: array, dirs: int, files: int, truncated_reason: ?string }
 	 */
-	private function walk_install( int $now ): array {
+	private function walk_install( int $now, float $deadline ): array {
 		$abspath = $this->realpath_slashed( ABSPATH );
 		$content = $this->realpath_slashed( WP_CONTENT_DIR );
 		$uploads = '' !== $content ? $content . '/uploads' : '';
@@ -497,14 +517,15 @@ class EMCP_Tools_Security_Compromise_Audit {
 		}
 		$skip = array_filter( array( '' !== $content ? $content . '/cache' : '', $uploads ) );
 
-		$cutoff  = $now - self::TIMESTOMP_DAYS * 86400;
-		$started = time();
+		$cutoff = $now - self::TIMESTOMP_DAYS * 86400;
+		// The walk keeps a share of the budget back for the page fetches and backup checks.
+		$walk_until = min( microtime( true ) + self::TIME_BUDGET, $deadline - max( 0.0, ( $deadline - microtime( true ) ) * 0.25 ) );
 		$out     = array( 'twins' => array(), 'php' => array(), 'dirs' => 0, 'files' => 0, 'truncated_reason' => null );
 
 		foreach ( $roots as $root ) {
 			$stack = array( $root );
 			while ( ! empty( $stack ) ) {
-				$reason = $this->walk_stop_reason( $out['dirs'], $out['files'], $started );
+				$reason = $this->walk_stop_reason( $out['dirs'], $out['files'], $walk_until );
 				if ( null !== $reason ) {
 					$out['truncated_reason'] = $reason;
 					return $out;
@@ -528,7 +549,7 @@ class EMCP_Tools_Security_Compromise_Audit {
 						continue;
 					}
 					if ( is_dir( $full ) ) {
-						if ( ! in_array( $full, $skip, true ) ) {
+						if ( ! in_array( $full, $skip, true ) && ! self::is_skipped_dir( $name ) ) {
 							$stack[] = $full;
 						}
 						continue;
@@ -552,26 +573,30 @@ class EMCP_Tools_Security_Compromise_Audit {
 		return $out;
 	}
 
-	private function walk_stop_reason( int $dirs, int $files, int $started ): ?string {
+	private function walk_stop_reason( int $dirs, int $files, float $until ): ?string {
 		if ( $dirs >= self::MAX_DIRS ) {
 			return 'max_dirs';
 		}
 		if ( $files >= self::MAX_FILES ) {
 			return 'max_files';
 		}
-		if ( ( time() - $started ) >= self::TIME_BUDGET ) {
+		if ( microtime( true ) >= $until ) {
 			return 'time_budget';
 		}
 		return null;
 	}
 
 	/** @return array{ ok: bool, status: int, title: string, length: int, error: ?string } */
-	private function fetch_page( string $user_agent ): array {
+	private function fetch_page( string $user_agent, float $deadline ): array {
+		$timeout = self::timeout_for( (int) floor( $deadline - microtime( true ) ), self::FETCH_TIMEOUT );
+		if ( $timeout <= 0 ) {
+			return array( 'ok' => false, 'status' => 0, 'title' => '', 'length' => 0, 'error' => 'skipped: time budget used up' );
+		}
 		$url = add_query_arg( 'emcp_scan', wp_rand( 100000, 999999 ), home_url( '/' ) );
 		$res = wp_remote_get(
 			$url,
 			array(
-				'timeout'             => self::FETCH_TIMEOUT,
+				'timeout'             => $timeout,
 				'redirection'         => 2,
 				'user-agent'          => $user_agent,
 				'limit_response_size' => self::MAX_BODY_BYTES,
@@ -593,7 +618,7 @@ class EMCP_Tools_Security_Compromise_Audit {
 	}
 
 	/** @return array{ candidates: array, checked: int } */
-	private function gather_backups(): array {
+	private function gather_backups( float $deadline ): array {
 		$content = $this->realpath_slashed( WP_CONTENT_DIR );
 		$files   = array();
 
@@ -635,15 +660,18 @@ class EMCP_Tools_Security_Compromise_Audit {
 		$to_check = array_flip( array_slice( $this->head_order( $files ), 0, self::MAX_BACKUP_HEADS ) );
 
 		$candidates = array();
+		$checked    = 0;
 		foreach ( $files as $i => $file ) {
-			$status = null; // Not checked.
-			if ( isset( $to_check[ $i ] ) ) {
-				$res    = wp_remote_head( $file['url'], array( 'timeout' => self::HEAD_TIMEOUT, 'redirection' => 0 ) );
+			$status  = null; // Not checked.
+			$timeout = isset( $to_check[ $i ] ) ? self::timeout_for( (int) floor( $deadline - microtime( true ) ), self::HEAD_TIMEOUT ) : 0;
+			if ( $timeout > 0 ) {
+				$res    = wp_remote_head( $file['url'], array( 'timeout' => $timeout, 'redirection' => 0 ) );
 				$status = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
+				$checked++;
 			}
 			$candidates[] = array( 'path' => $file['path'], 'size' => $file['size'], 'status' => $status );
 		}
-		return array( 'candidates' => $candidates, 'checked' => count( $to_check ) );
+		return array( 'candidates' => $candidates, 'checked' => $checked );
 	}
 
 	/**
@@ -771,6 +799,38 @@ class EMCP_Tools_Security_Compromise_Audit {
 	}
 
 	// ---- Helpers -----------------------------------------------------------
+
+	/** Shown when the walk stopped before covering the whole install. */
+	const PARTIAL_RECOMMENDATION = 'Run scan-security again with checks: ["compromise"] and a larger max_seconds (up to 120) to cover the whole install.';
+
+	/**
+	 * Pure: the message for a check the walk only partly covered.
+	 *
+	 * @param string $what What the check looks for.
+	 */
+	private static function partial_message( string $what ): string {
+		return sprintf( 'The install was only partly checked for %s: the folder walk stopped at its limit before covering every folder. None were found in the folders it reached.', $what );
+	}
+
+	/**
+	 * Pure: whether the walk skips a folder by name.
+	 *
+	 * @param string $name Folder name.
+	 */
+	public static function is_skipped_dir( string $name ): bool {
+		return in_array( strtolower( $name ), self::SKIPPED_DIRS, true );
+	}
+
+	/**
+	 * Pure: the timeout for a network request given the seconds left, or 0 to skip it.
+	 *
+	 * @param int $remaining Whole seconds left in the audit's budget.
+	 * @param int $max       The request's usual timeout.
+	 */
+	public static function timeout_for( int $remaining, int $max ): int {
+		$left = $remaining - 1;
+		return $left < 1 ? 0 : min( $max, $left );
+	}
 
 	private function in_library_path( string $path ): bool {
 		$segments = explode( '/', strtolower( $path ) );

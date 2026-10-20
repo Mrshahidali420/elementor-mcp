@@ -166,7 +166,7 @@ class EMCP_Tools_Security_Scanner {
 			$findings = array_merge( $findings, $this->software()->run() );
 		}
 		if ( in_array( 'compromise', $checks, true ) ) {
-			$c = $this->compromise()->run();
+			$c = $this->compromise()->run( $max_seconds );
 			$findings = array_merge( $findings, $c['findings'] );
 			$scan_meta['compromise'] = $c['stats'];
 		}

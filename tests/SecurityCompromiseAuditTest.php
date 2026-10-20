@@ -312,4 +312,67 @@ final class SecurityCompromiseAuditTest extends TestCase {
 		$this->assertCount( 5, $scanner->resolve_checks( null ) );
 		$this->assertArrayHasKey( 'compromise', $scanner->group_by_category( array() ) );
 	}
+
+	// ---- Partial walks, time budget, skipped folders (review fixes) --------
+
+	public function test_a_truncated_walk_does_not_pass_twin_folders(): void {
+		$f = $this->audit->evaluate_twin_folders( array(), 'time_budget' );
+		$this->assertSame( 'info', $f['status'] );
+		$this->assertStringContainsString( 'partly', $f['message'] );
+		$this->assertSame( 'time_budget', $f['value']['truncated_reason'] );
+	}
+
+	public function test_a_truncated_walk_does_not_pass_backdated_files(): void {
+		$f = $this->audit->evaluate_timestomp( array(), self::NOW, array(), 'max_dirs' );
+		$this->assertSame( 'info', $f['status'] );
+		$this->assertStringContainsString( 'partly', $f['message'] );
+	}
+
+	public function test_a_truncated_walk_keeps_what_it_found(): void {
+		$f = $this->audit->evaluate_twin_folders( array( array( 'path' => 'wp-content/plugins/foo/prompts/prompts', 'files' => array( '.htaccess', 'index.php' ) ) ), 'time_budget' );
+		$this->assertSame( 'critical', $f['status'] );
+		$this->assertSame( 'time_budget', $f['value']['truncated_reason'] );
+	}
+
+	public function test_dependency_and_vcs_folders_are_not_walked(): void {
+		$this->assertTrue( EMCP_Tools_Security_Compromise_Audit::is_skipped_dir( 'node_modules' ) );
+		$this->assertTrue( EMCP_Tools_Security_Compromise_Audit::is_skipped_dir( '.git' ) );
+		$this->assertFalse( EMCP_Tools_Security_Compromise_Audit::is_skipped_dir( 'vendor' ), 'backdoors hide in vendor folders too' );
+		$this->assertFalse( EMCP_Tools_Security_Compromise_Audit::is_skipped_dir( 'prompts' ) );
+	}
+
+	public function test_network_timeouts_fit_the_remaining_budget(): void {
+		$this->assertSame( EMCP_Tools_Security_Compromise_Audit::FETCH_TIMEOUT, EMCP_Tools_Security_Compromise_Audit::timeout_for( 60, EMCP_Tools_Security_Compromise_Audit::FETCH_TIMEOUT ) );
+		$this->assertSame( 4, EMCP_Tools_Security_Compromise_Audit::timeout_for( 5, EMCP_Tools_Security_Compromise_Audit::FETCH_TIMEOUT ) );
+		$this->assertSame( 0, EMCP_Tools_Security_Compromise_Audit::timeout_for( 1, EMCP_Tools_Security_Compromise_Audit::HEAD_TIMEOUT ), 'no time left: skip the request' );
+	}
+
+	public function test_a_skipped_cloaking_check_says_why(): void {
+		$skip = array( 'ok' => false, 'error' => 'skipped: time budget used up' );
+		$f    = $this->audit->evaluate_cloaking( $skip, $skip );
+		$this->assertSame( 'info', $f['status'] );
+		$this->assertStringContainsString( 'time budget', json_encode( $f['value'] ) );
+	}
+
+	public function test_emcp_backup_folders_are_checked(): void {
+		$this->assertContains( 'emcp-backups*', EMCP_Tools_Security_Compromise_Audit::BACKUP_DIRS );
+	}
+
+	public function test_a_public_archive_is_not_claimed_to_be_a_full_database(): void {
+		$f = $this->audit->evaluate_public_backups( array( array( 'path' => 'theme.zip', 'size' => 10, 'status' => 200 ) ) );
+		$this->assertSame( 'critical', $f['status'] );
+		$this->assertStringContainsString( 'can expose', $f['message'] );
+	}
+
+	public function test_the_scanner_hands_its_time_budget_to_the_audit(): void {
+		$spy = new class() extends EMCP_Tools_Security_Compromise_Audit {
+			public $seen = null;
+			public function run( int $max_seconds = self::TIME_BUDGET ): array {
+				$this->seen = $max_seconds;
+				return array( 'findings' => array(), 'stats' => array() );
+			}
+		};
+		( new EMCP_Tools_Security_Scanner( null, null, null, null, $spy ) )->scan( array( 'checks' => array( 'compromise' ), 'max_seconds' => 7 ) );
+		$this->assertSame( 7, $spy->seen );
+	}
 }
