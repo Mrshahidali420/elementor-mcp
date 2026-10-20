@@ -350,7 +350,21 @@ class EMCP_Tools_Security_Process_Inspector {
 		if ( (string) $live['start_time'] !== $start_time ) {
 			return 'start_time_mismatch';
 		}
+		if ( self::is_server_process( (string) ( $live['comm'] ?? '' ) ) ) {
+			return 'server_process';
+		}
 		return '';
+	}
+
+	/**
+	 * Whether a process name belongs to a web server, PHP worker or database. On
+	 * shared hosting these run as the same user for every site of the account,
+	 * so stopping one can take other sites down; they are never signalled.
+	 *
+	 * @param string $comm Process name from /proc/<pid>/stat (at most 15 characters).
+	 */
+	public static function is_server_process( string $comm ): bool {
+		return 1 === preg_match( '/^(php-fpm|php-cgi|lsphp|httpd|apache2?|nginx|litespeed|lshttpd|openlitespeed|mysqld|mariadbd|redis-server|memcached)/i', trim( $comm ) );
 	}
 
 	/** True when both the real and effective uid of a process are PHP's uid. */
@@ -373,6 +387,7 @@ class EMCP_Tools_Security_Process_Inspector {
 			'start_time_required' => __( 'Pass start_time exactly as list-processes returned it, so a reused pid is never signalled by mistake.', 'emcp-tools' ),
 			'not_found'           => __( 'No process with that pid is running now.', 'emcp-tools' ),
 			'not_owned'           => __( 'That process does not belong to the user PHP runs as.', 'emcp-tools' ),
+			'server_process'      => __( 'That is a web server, PHP worker or database process. On shared hosting it can serve other sites of the same account, so it is never stopped from here. Ask the host to restart it.', 'emcp-tools' ),
 			'start_time_mismatch' => __( 'That pid now belongs to a different process than the one listed (its start time changed). Run list-processes again.', 'emcp-tools' ),
 		);
 		return $messages[ $code ] ?? $code;

@@ -279,6 +279,17 @@ final class ProcessToolsTest extends TestCase {
 		$this->assertSame( 'start_time_mismatch', self::refusal( 4242, '899999', self::live() ) );
 	}
 
+	public function test_server_and_database_processes_are_never_signalled(): void {
+		// On shared hosting the same user also owns sibling sites' PHP workers and services.
+		foreach ( array( 'php-fpm8.2', 'php-fpm: pool www', 'lsphp', 'php-cgi', 'httpd', 'apache2', 'nginx', 'litespeed', 'mysqld', 'mariadbd', 'redis-server', 'memcached' ) as $comm ) {
+			$this->assertSame( 'server_process', self::refusal( 4242, '900000', array( 'comm' => $comm ) + self::live() ), $comm );
+		}
+		foreach ( array( 'sh', 'bash', 'php', 'perl', 'python3', '.wp-cache-watc' ) as $comm ) {
+			$this->assertSame( '', self::refusal( 4242, '900000', array( 'comm' => $comm ) + self::live() ), $comm );
+		}
+		$this->assertNotSame( '', EMCP_Tools_Security_Process_Inspector::refusal_message( 'server_process' ) );
+	}
+
 	public function test_a_setuid_style_process_is_not_owned(): void {
 		$this->assertFalse( EMCP_Tools_Security_Process_Inspector::is_owned( array( 'ruid' => self::UID, 'euid' => 0 ), self::UID ) );
 		$this->assertFalse( EMCP_Tools_Security_Process_Inspector::is_owned( array( 'ruid' => -1, 'euid' => -1 ), -1 ) );
