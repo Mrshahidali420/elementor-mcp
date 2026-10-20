@@ -194,9 +194,13 @@ final class FileQuarantineTest extends TestCase {
 		$this->assertSame( $hash, $m['sha256'] );
 		$this->assertSame( 'twin folder back door', $m['reason'] );
 		$this->assertFileDoesNotExist( $this->root . '/' . $rel );
-		$this->assertFileExists( $this->tmp . '/emcp-quarantine/' . $m['id'] . '/' . $rel );
+		// Stored under a name no web server runs as PHP, even where .htaccess is ignored (nginx, IIS).
+		$this->assertFileDoesNotExist( $this->tmp . '/emcp-quarantine/' . $m['id'] . '/' . $rel );
+		$this->assertFileExists( $this->tmp . '/emcp-quarantine/' . $m['id'] . '/' . $rel . '.quarantined' );
+		$this->assertTrue( $m['neutralized'] );
 		$this->assertFileExists( $this->tmp . '/emcp-quarantine/' . $m['id'] . '.json' );
 		$this->assertFileExists( $this->tmp . '/emcp-quarantine/.htaccess' );
+		$this->assertStringContainsString( '<deny users="*"', (string) file_get_contents( $this->tmp . '/emcp-quarantine/web.config' ) );
 		$this->assertFileExists( $this->tmp . '/emcp-quarantine/index.php' );
 
 		$listed = EMCP_Tools_File_Quarantine::entries( 'quarantined', $this->ctx() );
@@ -225,7 +229,9 @@ final class FileQuarantineTest extends TestCase {
 		$this->assertSame( 2, $m['files'] );
 		$this->assertSame( array(), $result['warnings'] );
 		$this->assertDirectoryDoesNotExist( $this->root . '/wp-content/plugins/demo' );
-		$this->assertFileExists( $base . '/' . $m['id'] . '/wp-content/plugins/demo/prompts/prompts/index.php' );
+		$this->assertFileExists( $base . '/' . $m['id'] . '/wp-content/plugins/demo/prompts/prompts/index.php.quarantined' );
+		$this->assertFileExists( $base . '/' . $m['id'] . '/wp-content/plugins/demo/demo.php.quarantined' );
+		$this->assertFileDoesNotExist( $base . '/' . $m['id'] . '/wp-content/plugins/demo/demo.php' );
 		$this->assertStringContainsString( 'Require all denied', (string) file_get_contents( $base . '/.htaccess' ) );
 		$this->assertSame( '', trim( str_replace( array( '<?php', '// Silence is golden.' ), '', (string) file_get_contents( $base . '/index.php' ) ) ) );
 
@@ -234,6 +240,33 @@ final class FileQuarantineTest extends TestCase {
 		$this->assertSame( 'copy', $back['method'] );
 		$this->assertFileExists( $this->root . '/wp-content/plugins/demo/prompts/prompts/index.php' );
 		$this->assertFileExists( $this->root . '/wp-content/plugins/demo/demo.php' );
+		$this->assertFileDoesNotExist( $this->root . '/wp-content/plugins/demo/demo.php.quarantined' );
+	}
+
+	public function test_a_parent_folder_that_looks_web_served_is_not_used(): void {
+		$this->assertTrue( EMCP_Tools_File_Quarantine::looks_web_served( $this->tmp . '/public_html' ) );
+		$this->assertTrue( EMCP_Tools_File_Quarantine::looks_web_served( $this->tmp . '/htdocs' ) );
+		file_put_contents( $this->tmp . '/index.php', "<?php
+" );
+		$this->assertTrue( EMCP_Tools_File_Quarantine::looks_web_served( $this->tmp ), 'a parent with its own index.php is a web root (WordPress in a subfolder)' );
+
+		$ctx = $this->ctx();
+		unset( $ctx['outside_ok'] );
+		$result = EMCP_Tools_File_Quarantine::quarantine( 'wp-content/plugins/demo/demo.php', 'x', $ctx );
+		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+		$this->assertSame( 'wp-content', $result['manifest']['location'] );
+	}
+
+	public function test_a_plain_parent_folder_is_used(): void {
+		$this->assertFalse( EMCP_Tools_File_Quarantine::looks_web_served( $this->tmp ) );
+	}
+
+	public function test_a_file_already_named_quarantined_round_trips(): void {
+		file_put_contents( $this->root . '/wp-content/plugins/demo/x.php.quarantined', 'odd' );
+		$result = EMCP_Tools_File_Quarantine::quarantine( 'wp-content/plugins/demo/x.php.quarantined', 'x', $this->ctx() );
+		$back   = EMCP_Tools_File_Quarantine::restore( $result['manifest']['id'], false, $this->ctx() );
+		$this->assertIsArray( $back, is_wp_error( $back ) ? $back->get_error_message() : '' );
+		$this->assertSame( 'odd', file_get_contents( $this->root . '/wp-content/plugins/demo/x.php.quarantined' ) );
 	}
 
 	public function test_restore_refuses_existing_path_unless_overwrite_and_keeps_the_replaced_item(): void {

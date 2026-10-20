@@ -38,6 +38,18 @@ class EMCP_Tools_File_Quarantine {
 	const MAX_REASON       = 500;   // Characters kept from a reason.
 	const MAX_LIST         = 500;   // Entries list-quarantine returns.
 
+	/**
+	 * Appended to every stored file name, so no web server runs a quarantined
+	 * file as PHP even where the folder's .htaccess is ignored (nginx, IIS).
+	 */
+	const SUFFIX = '.quarantined';
+
+	/** Folder names that are web roots on common hosts. */
+	const WEB_ROOT_NAMES = array( 'public_html', 'public', 'www', 'wwwroot', 'htdocs', 'httpdocs', 'html', 'web' );
+
+	/** Files that mark a folder as served by the web server. */
+	const WEB_ROOT_MARKERS = array( 'index.php', 'index.html', 'index.htm', 'wp-config.php', '.htaccess', 'web.config' );
+
 	/** Root files WordPress needs to load at all. */
 	const PROTECTED_ROOT_FILES = array( 'wp-config.php', 'wp-load.php', 'wp-settings.php', 'wp-blog-header.php', 'index.php' );
 
@@ -242,6 +254,7 @@ class EMCP_Tools_File_Quarantine {
 			'status'        => self::STATUS_HELD,
 			'change_id'     => (string) ( $f['change_id'] ?? '' ),
 			'restored_at'   => null,
+			'neutralized'   => ! empty( $f['neutralized'] ),
 		);
 	}
 
@@ -285,6 +298,13 @@ class EMCP_Tools_File_Quarantine {
 		return "# EMCP Tools quarantine: never serve these files.\n"
 			. "<IfModule mod_authz_core.c>\n\tRequire all denied\n</IfModule>\n"
 			. "<IfModule !mod_authz_core.c>\n\tOrder allow,deny\n\tDeny from all\n</IfModule>\n";
+	}
+
+	/**
+	 * Pure: deny-all rules for IIS, which ignores .htaccess.
+	 */
+	public static function web_config_rules(): string {
+		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<configuration>\n\t<system.webServer>\n\t\t<security>\n\t\t\t<authorization>\n\t\t\t\t<remove users=\"*\" roles=\"\" verbs=\"\" />\n\t\t\t\t<add accessType=\"Deny\" users=\"*\" />\n\t\t\t</authorization>\n\t\t</security>\n\t</system.webServer>\n\t<system.web>\n\t\t<authorization>\n\t\t\t<deny users=\"*\" />\n\t\t</authorization>\n\t</system.web>\n</configuration>\n";
 	}
 
 	// ---- Context -------------------------------------------------------
@@ -338,10 +358,100 @@ class EMCP_Tools_File_Quarantine {
 	 */
 	private static function outside_writable( string $root ): bool {
 		$base = self::candidate_bases( $root, $root )[0]['dir'];
+		if ( self::looks_web_served( dirname( $base ) ) ) {
+			return false; // WordPress sits in a subfolder of a web root: "above WordPress" is still public.
+		}
 		if ( is_dir( $base ) ) {
 			return @is_writable( $base ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 		}
 		return @is_writable( dirname( $base ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	}
+
+	/**
+	 * Whether a folder looks like it is served by the web server: a common
+	 * web-root name, or a folder holding an index, wp-config.php or server
+	 * config of its own (WordPress installed in a subfolder of a site).
+	 *
+	 * @param string $dir Folder.
+	 */
+	public static function looks_web_served( string $dir ): bool {
+		$dir = rtrim( self::slash( $dir ), '/' );
+		if ( in_array( strtolower( basename( $dir ) ), self::WEB_ROOT_NAMES, true ) ) {
+			return true;
+		}
+		foreach ( self::WEB_ROOT_MARKERS as $marker ) {
+			if ( file_exists( $dir . '/' . $marker ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Rename every file of a stored item to end in SUFFIX.
+	 *
+	 * @param string $stored Stored file or folder.
+	 * @return true|\WP_Error
+	 */
+	private static function neutralize( string $stored ) {
+		return self::rename_all( $stored, true );
+	}
+
+	/**
+	 * Undo neutralize(): strip one SUFFIX from every stored file name.
+	 *
+	 * @param string $stored Stored file or folder (its plain path).
+	 * @return true|\WP_Error
+	 */
+	private static function revive( string $stored ) {
+		return self::rename_all( $stored, false );
+	}
+
+	/**
+	 * Add or strip SUFFIX on a stored file, or on every file in a stored folder.
+	 * A failure part way undoes the renames already made.
+	 *
+	 * @param string $stored Plain stored path.
+	 * @param bool   $add    True to add the suffix, false to strip it.
+	 * @return true|\WP_Error
+	 */
+	private static function rename_all( string $stored, bool $add ) {
+		$pairs = array();
+		if ( is_dir( $stored ) && ! is_link( $stored ) ) {
+			foreach ( EMCP_Tools_File_Mover::walk( $stored ) as $item ) {
+				if ( 'dir' === $item['kind'] ) {
+					continue;
+				}
+				if ( $add ) {
+					$pairs[] = array( $item['path'], $item['path'] . self::SUFFIX );
+				} elseif ( self::SUFFIX === substr( $item['path'], -strlen( self::SUFFIX ) ) ) {
+					$pairs[] = array( $item['path'], substr( $item['path'], 0, -strlen( self::SUFFIX ) ) );
+				}
+			}
+		} else {
+			$pairs[] = $add ? array( $stored, $stored . self::SUFFIX ) : array( $stored . self::SUFFIX, $stored );
+		}
+		$done = array();
+		foreach ( $pairs as $pair ) {
+			if ( ! @rename( $pair[0], $pair[1] ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.rename_rename
+				foreach ( array_reverse( $done ) as $back ) {
+					@rename( $back[1], $back[0] ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions.rename_rename
+				}
+				return new \WP_Error( 'rename_failed', __( 'Could not rename the quarantined files.', 'emcp-tools' ) );
+			}
+			$done[] = $pair;
+		}
+		return true;
+	}
+
+	/**
+	 * Where a stored item can be found on disk: a single file carries SUFFIX.
+	 *
+	 * @param string $stored   Plain stored path.
+	 * @param array  $manifest Manifest.
+	 */
+	private static function on_disk( string $stored, array $manifest ): string {
+		return ! empty( $manifest['neutralized'] ) && 'dir' !== ( $manifest['type'] ?? '' ) ? $stored . self::SUFFIX : $stored;
 	}
 
 	// ---- Quarantine ----------------------------------------------------
@@ -381,10 +491,17 @@ class EMCP_Tools_File_Quarantine {
 			EMCP_Tools_File_Mover::prune_empty( dirname( $dest ), $base['dir'] );
 			return $moved;
 		}
+		$neutral = self::neutralize( $dest );
+		if ( is_wp_error( $neutral ) ) {
+			EMCP_Tools_File_Mover::move( $dest, $source['abs'], ! empty( $ctx['force_copy'] ) );
+			EMCP_Tools_File_Mover::prune_empty( dirname( $dest ), $base['dir'] );
+			return $neutral;
+		}
 		$manifest = self::build_manifest(
 			array_merge(
 				$stats,
 				array(
+					'neutralized'   => true,
 					'id'            => $id,
 					'original_path' => $source['rel'],
 					'reason'        => $reason,
@@ -397,6 +514,7 @@ class EMCP_Tools_File_Quarantine {
 			)
 		);
 		if ( ! self::write_manifest( $base['dir'], $manifest ) ) {
+			self::revive( $dest );
 			EMCP_Tools_File_Mover::move( $dest, $source['abs'], ! empty( $ctx['force_copy'] ) );
 			EMCP_Tools_File_Mover::prune_empty( dirname( $dest ), $base['dir'] );
 			return new \WP_Error( 'manifest_failed', __( 'Could not write the quarantine manifest, so the file was put back.', 'emcp-tools' ) );
@@ -405,7 +523,7 @@ class EMCP_Tools_File_Quarantine {
 		return array(
 			'manifest'  => $manifest,
 			'base'      => $base['dir'],
-			'stored_at' => $dest,
+			'stored_at' => self::on_disk( $dest, $manifest ),
 			'warnings'  => EMCP_Tools_File_Mover::left_behind_warning( $moved['left_behind'], $ctx['root'] ),
 		);
 	}
@@ -541,8 +659,9 @@ class EMCP_Tools_File_Quarantine {
 		if ( $refused ) {
 			return $refused;
 		}
-		$stored = self::stored_path( $found['base'], $id, $rel );
-		if ( ! file_exists( $stored ) && ! is_link( $stored ) ) {
+		$stored  = self::stored_path( $found['base'], $id, $rel );
+		$on_disk = self::on_disk( $stored, $manifest );
+		if ( ! file_exists( $on_disk ) && ! is_link( $on_disk ) ) {
 			return new \WP_Error( 'missing_from_quarantine', __( 'The quarantined copy is missing, so there is nothing to restore.', 'emcp-tools' ) );
 		}
 		$parent = self::confined_parent( $ctx['root'], $rel );
@@ -554,9 +673,21 @@ class EMCP_Tools_File_Quarantine {
 		if ( is_wp_error( $replaced ) ) {
 			return $replaced;
 		}
+		if ( ! empty( $manifest['neutralized'] ) ) {
+			$revived = self::revive( $stored );
+			if ( is_wp_error( $revived ) ) {
+				if ( is_string( $replaced ) ) {
+					self::restore( $replaced, false, $ctx ); // Put back what was there.
+				}
+				return $revived;
+			}
+		}
 		$integrity = self::integrity( $manifest, $stored );
 		$moved     = EMCP_Tools_File_Mover::move( $stored, $target, ! empty( $ctx['force_copy'] ) );
 		if ( is_wp_error( $moved ) ) {
+			if ( ! empty( $manifest['neutralized'] ) ) {
+				self::neutralize( $stored );
+			}
 			if ( is_string( $replaced ) ) {
 				self::restore( $replaced, false, $ctx ); // Put back what was there.
 			}
@@ -777,6 +908,9 @@ class EMCP_Tools_File_Quarantine {
 			return false;
 		}
 		if ( ! is_file( $dir . '/index.php' ) && false === @file_put_contents( $dir . '/index.php', "<?php\n// Silence is golden.\n" ) ) { // phpcs:ignore
+			return false;
+		}
+		if ( ! is_file( $dir . '/web.config' ) && false === @file_put_contents( $dir . '/web.config', self::web_config_rules() ) ) { // phpcs:ignore
 			return false;
 		}
 		return true;

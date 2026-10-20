@@ -548,7 +548,7 @@ class EMCP_Tools_Filesystem_Abilities {
 			'emcp-tools/quarantine-file',
 			array(
 				'label'               => __( 'Quarantine File', 'emcp-tools' ),
-				'description'         => __( 'Move a suspicious file or folder out of the web root so it stops running, with a manifest (size, sha256, times, reason). Stored above WordPress when that folder is writable, else in wp-content/emcp-quarantine behind a deny-all .htaccess. Undo with restore-quarantined-file or rollback-change. Refuses WordPress core files, wp-admin, wp-includes and symlinks that leave the site. Requires confirm:true. Disabled by default.', 'emcp-tools' ),
+				'description'         => __( 'Move a suspicious file or folder out of the web root so it stops running, with a manifest (size, sha256, times, reason). Every stored file is renamed to end in .quarantined, so no web server runs it, and the folder is denied to the web (.htaccess and web.config). Stored above WordPress when that folder is writable and not itself web-served, else in wp-content/emcp-quarantine. Undo with restore-quarantined-file or rollback-change. Refuses WordPress core files, wp-admin, wp-includes and symlinks that leave the site. Requires confirm:true. Disabled by default.', 'emcp-tools' ),
 				'category'            => 'emcp-tools',
 				'execute_callback'    => array( $this, 'execute_quarantine_file' ),
 				'permission_callback' => array( $this, 'check_permission' ),
