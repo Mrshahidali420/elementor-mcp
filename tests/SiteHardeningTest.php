@@ -120,13 +120,23 @@ final class SiteHardeningTest extends TestCase {
 
 	public function test_strip_core_version_only_when_it_matches(): void {
 		$v = '6.9.1';
-		$this->assertSame( 'https://s.test/a.css', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.css?ver=6.9.1', $v ) );
-		$this->assertSame( 'https://s.test/a.js?x=1', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.js?ver=6.9.1&x=1', $v ) );
-		$this->assertSame( 'https://s.test/a.js?x=1#f', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.js?x=1&ver=6.9.1#f', $v ) );
-		$this->assertSame( 'https://s.test/p.css?ver=2.3.0', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/p.css?ver=2.3.0', $v ) );
-		$this->assertSame( 'https://s.test/p.css?nover=6.9.1', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/p.css?nover=6.9.1', $v ) );
-		$this->assertSame( 'https://s.test/p.css', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/p.css', $v ) );
-		$this->assertSame( 'https://s.test/a.css?ver=6.9.1', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.css?ver=6.9.1', '' ) );
+		// The version is swapped for a per-site token, not removed, so a core update still busts caches.
+		$t = 'a1b2c3d4';
+		$this->assertSame( 'https://s.test/a.css?ver=' . $t, EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.css?ver=6.9.1', $v, $t ) );
+		$this->assertSame( 'https://s.test/a.js?ver=' . $t . '&x=1', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.js?ver=6.9.1&x=1', $v, $t ) );
+		$this->assertSame( 'https://s.test/a.js?x=1&ver=' . $t . '#f', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.js?x=1&ver=6.9.1#f', $v, $t ) );
+		$this->assertSame( 'https://s.test/p.css?ver=2.3.0', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/p.css?ver=2.3.0', $v, $t ) );
+		$this->assertSame( 'https://s.test/p.css?nover=6.9.1', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/p.css?nover=6.9.1', $v, $t ) );
+		$this->assertSame( 'https://s.test/p.css', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/p.css', $v, $t ) );
+		$this->assertSame( 'https://s.test/a.css?ver=6.9.1', EMCP_Tools_Site_Hardening::strip_core_version( 'https://s.test/a.css?ver=6.9.1', '', $t ) );
+	}
+
+	public function test_the_version_token_hides_the_version_but_changes_with_it(): void {
+		$a = EMCP_Tools_Site_Hardening::version_token( '6.9.1', 'salt' );
+		$this->assertSame( 8, strlen( $a ) );
+		$this->assertStringNotContainsString( '6.9', $a );
+		$this->assertNotSame( $a, EMCP_Tools_Site_Hardening::version_token( '6.9.2', 'salt' ), 'a core update changes the token' );
+		$this->assertNotSame( $a, EMCP_Tools_Site_Hardening::version_token( '6.9.1', 'other' ), 'the version cannot be looked up from the token' );
 	}
 
 	public function test_users_routes_are_matched_exactly(): void {
@@ -156,7 +166,10 @@ final class SiteHardeningTest extends TestCase {
 
 	public function test_should_block_author_request(): void {
 		$this->assertTrue( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author' => '1' ), false ) );
-		$this->assertTrue( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author_name' => 'admin' ), false ) );
+		$this->assertFalse( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author_name' => 'admin' ), false ), 'author archives stay: the name is already known to whoever asks for it' );
+		$this->assertTrue( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author' => '1', 'author_name' => 'admin' ), false ) );
+		$this->assertFalse( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author' => 'admin' ), false ), 'only numeric ids enumerate' );
+		$this->assertSame( 302, EMCP_Tools_Site_Hardening::AUTHOR_REDIRECT_STATUS, 'a 302 is not cached, so switching the toggle off takes effect' );
 		$this->assertFalse( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author' => '1' ), true ) );
 		$this->assertFalse( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author' => '' ), false ) );
 		$this->assertFalse( EMCP_Tools_Site_Hardening::should_block_author_request( array( 'author' => '0' ), false ) );

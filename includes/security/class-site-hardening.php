@@ -31,6 +31,9 @@ class EMCP_Tools_Site_Hardening {
 	/** The toggles harden-site accepts, in display order. */
 	const TOGGLES = array( 'disable_xmlrpc', 'hide_wp_version', 'block_user_enumeration', 'hide_php_errors' );
 
+	/** Status for the author redirect: temporary, so browsers do not keep it after the toggle goes off. */
+	const AUTHOR_REDIRECT_STATUS = 302;
+
 	/** REST route prefix that lists users. */
 	const USERS_ROUTE = '/wp/v2/users';
 
@@ -169,14 +172,27 @@ class EMCP_Tools_Site_Hardening {
 	}
 
 	/**
-	 * Remove `ver=` from an asset URL when it equals the WordPress version.
-	 * Any other version (a plugin's own) is left alone.
+	 * Pure: a per-site stand-in for the WordPress version in asset URLs. It
+	 * changes when WordPress updates (so caches are still busted) but cannot be
+	 * mapped back to a version without the site's salt.
+	 *
+	 * @param string $wp_version WordPress version.
+	 * @param string $salt       Site secret.
+	 */
+	public static function version_token( string $wp_version, string $salt ): string {
+		return substr( hash( 'sha256', $salt . '|' . $wp_version ), 0, 8 );
+	}
+
+	/**
+	 * Replace `ver=` in an asset URL with $token when it equals the WordPress
+	 * version. Any other version (a plugin's own) is left alone.
 	 *
 	 * @param string $src        Asset URL.
 	 * @param string $wp_version WordPress version.
+	 * @param string $token      Replacement value (version_token()).
 	 * @return string
 	 */
-	public static function strip_core_version( string $src, string $wp_version ): string {
+	public static function strip_core_version( string $src, string $wp_version, string $token = '' ): string {
 		if ( '' === $src || '' === $wp_version || false === strpos( $src, 'ver=' ) ) {
 			return $src;
 		}
@@ -196,6 +212,9 @@ class EMCP_Tools_Site_Hardening {
 			$parts = explode( '=', $pair, 2 );
 			if ( 'ver' === $parts[0] && isset( $parts[1] ) && rawurldecode( $parts[1] ) === $wp_version ) {
 				$removed = true;
+				if ( '' !== $token ) {
+					$kept[] = 'ver=' . rawurlencode( $token );
+				}
 				continue;
 			}
 			$kept[] = $pair;
@@ -259,12 +278,10 @@ class EMCP_Tools_Site_Hardening {
 		if ( $is_logged_in ) {
 			return false;
 		}
-		foreach ( array( 'author', 'author_name' ) as $key ) {
-			if ( isset( $query_vars[ $key ] ) && '' !== (string) $query_vars[ $key ] && '0' !== (string) $query_vars[ $key ] ) {
-				return true;
-			}
-		}
-		return false;
+		// Only a numeric id enumerates: ?author=1 redirects to /author/<login>/.
+		// An archive asked for by name reveals nothing the visitor did not know.
+		$id = (string) ( $query_vars['author'] ?? '' );
+		return ctype_digit( $id ) && (int) $id > 0;
 	}
 
 	/**
@@ -421,7 +438,8 @@ class EMCP_Tools_Site_Hardening {
 			return $src;
 		}
 		$version = isset( $GLOBALS['wp_version'] ) ? (string) $GLOBALS['wp_version'] : '';
-		return self::strip_core_version( $src, $version );
+		$salt    = function_exists( 'wp_salt' ) ? wp_salt( 'nonce' ) : '';
+		return self::strip_core_version( $src, $version, '' === $version ? '' : self::version_token( $version, $salt ) );
 	}
 
 	/**
@@ -436,7 +454,7 @@ class EMCP_Tools_Site_Hardening {
 		return self::filter_user_endpoints( $endpoints, $allowed );
 	}
 
-	/** Send a logged-out author lookup to the home page (301). */
+	/** Send a logged-out ?author=N lookup to the home page (302). */
 	public static function maybe_redirect_author(): void {
 		if ( ! self::on( 'block_user_enumeration' ) ) {
 			return;
@@ -445,7 +463,7 @@ class EMCP_Tools_Site_Hardening {
 		if ( ! self::should_block_author_request( $query_vars, is_user_logged_in() ) ) {
 			return;
 		}
-		if ( wp_safe_redirect( home_url( '/' ), 301, 'EMCP Tools' ) ) {
+		if ( wp_safe_redirect( home_url( '/' ), self::AUTHOR_REDIRECT_STATUS, 'EMCP Tools' ) ) {
 			exit;
 		}
 	}
